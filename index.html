@@ -120,7 +120,12 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 .opp-name{font-size:10px;font-weight:800;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opp-role{font-size:9px;color:var(--yellow2);font-weight:700}
 .opp-stack{font-size:11px;font-weight:900;color:var(--green2)}
-.opp-action{font-size:9px;color:var(--txt2);margin-top:1px;min-height:12px}
+.opp-action{font-size:9px;color:var(--txt2);margin-top:1px;min-height:12px;font-weight:700}
+.opp-action.act-fold{color:#ef4444}
+.opp-action.act-call{color:#60a5fa}
+.opp-action.act-raise{color:#f59e0b}
+.opp-action.act-check{color:#6ee7b7}
+.opp-action.act-allin{color:#f97316}
 .opp.folded{opacity:.3}
 .opp.winner-glow .opp-info{border-color:var(--gold);box-shadow:0 0 16px rgba(255,215,0,.4)}
 .dealer-btn{
@@ -582,7 +587,7 @@ input[type=range]{-webkit-appearance:none;appearance:none}
       <div id="streetLabel">PREFLOP</div>
     </div>
     <div id="heroArea">
-      <div id="heroCards"></div>
+      <div id="heroCards" style="position:relative"></div>
       <div id="heroInfo">
         <div id="heroHandLabel" style="display:flex;align-items:center;gap:6px">—<span id="heroPosTag" style="font-size:9px;font-weight:900;padding:2px 6px;border-radius:10px;background:var(--bg3);color:var(--blue2);border:1px solid var(--border2)"></span></div>
         <div id="heroMade">아직 공용 카드 없음</div>
@@ -1123,7 +1128,13 @@ function renderGame(coachMsg){
     oppHTML+='<div class="opp-name">'+p.name+'</div>';
     if(role)oppHTML+='<div class="opp-role">'+role+'</div>';
     oppHTML+='<div class="opp-stack">'+fmt(p.stack)+'</div>';
-    oppHTML+='<div class="opp-action">'+p.action+'</div>';
+    var actClass='opp-action';
+    if(p.action==='폴드')actClass+=' act-fold';
+    else if(p.action==='콜')actClass+=' act-call';
+    else if(p.action==='레이즈'||p.action==='베팅')actClass+=' act-raise';
+    else if(p.action==='체크')actClass+=' act-check';
+    else if(p.action==='올인')actClass+=' act-allin';
+    oppHTML+='<div class="'+actClass+'">'+p.action+'</div>';
     oppHTML+='</div>';
     var bet=p.round>0?p.round:0;
     oppHTML+='<div class="opp-bet'+(bet>0?' show':'')+'">'+fmt(bet)+'</div>';
@@ -1156,7 +1167,7 @@ function renderGame(coachMsg){
   if(hero.cards.length>=2){
     var hHTML='';
     // 딕러 버튼은 heroCards 컨테이너 위에 절대 포지션으로 표시 (flex 깨지지 않도로)
-    if(heroIsDealer)hHTML+='<div class="dealer-btn" style="position:absolute;top:-10px;left:50px;z-index:10">D</div>';
+    if(heroIsDealer)hHTML+='<div class="dealer-btn" style="position:absolute;top:-8px;left:-8px;z-index:10">D</div>';
     hHTML+=renderCard(hero.cards[0],{deal:true});
     hHTML+=renderCard(hero.cards[1],{deal:true});
     $('heroCards').innerHTML=hHTML;
