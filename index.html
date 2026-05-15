@@ -174,10 +174,10 @@ input[type=range]{-webkit-appearance:none;appearance:none}
   background:linear-gradient(135deg,rgba(255,255,255,.3) 0%,transparent 55%);
   pointer-events:none;
 }
-.card .rank{font-size:20px;font-weight:900;line-height:1;color:#111}
-.card .suit{font-size:16px;line-height:1;margin-top:2px;color:#111}
-.card.red .rank,.card.red .suit{color:#dc2626}
-.card.black .rank,.card.black .suit{color:#111827}
+.card .rank{font-size:22px;font-weight:900;line-height:1;color:#111}
+.card .suit{font-size:18px;line-height:1;margin-top:1px;color:#111}
+.card.red .rank,.card.red .suit{color:#cc0000}
+.card.black .rank,.card.black .suit{color:#0a0a0a}
 .card.back{
   background:linear-gradient(135deg,#1e3a5f 0%,#0f2040 100%);
   border:1px solid rgba(255,255,255,.1);
@@ -204,9 +204,9 @@ input[type=range]{-webkit-appearance:none;appearance:none}
   to{opacity:1;transform:scale(1) rotate(0) translateY(0)}
 }
 /* 히어로 카드 크게 */
-#heroCards .card{width:58px;height:84px}
-#heroCards .card .rank{font-size:24px}
-#heroCards .card .suit{font-size:18px}
+#heroCards .card{width:64px;height:92px}
+#heroCards .card .rank{font-size:28px}
+#heroCards .card .suit{font-size:22px}
 
 /* ===== HERO AREA ===== */
 #heroArea{
@@ -1380,28 +1380,39 @@ function showResult(isWin,winner,xp,isFold,showdownResults){
     sdHTML+='<div class="showdown-title">쇼다운 결과</div>';
     showdownResults.forEach(function(r,idx){
       var isW=idx===0;
-      sdHTML+='<div class="showdown-player'+(isW?' winner':'')+'">';
+      var winCards=isW&&r.hand&&r.hand.bestCards?r.hand.bestCards:[];
+      sdHTML+='<div class="showdown-player'+(isW?' winner':'')+'">'
       sdHTML+='<div class="sp-header">';
       sdHTML+='<span class="sp-name">'+(r.player.isHero?'나 (히어로)':r.player.name)+(isW?' 🏆':'')+' </span>';
       if(r.hand)sdHTML+='<span class="sp-hand-name">'+r.hand.name+'</span>';
       sdHTML+='</div>';
       sdHTML+='<div class="sp-cards">';
       r.player.cards.forEach(function(c){
-        var isWinCard=isW&&r.hand&&r.hand.bestCards&&r.hand.bestCards.some(function(bc){return bc.id===c.id});
-        sdHTML+=renderCard(c,{win:isWinCard});
+        var isWinCard=winCards.some(function(bc){return bc.id===c.id});
+        sdHTML+=renderCard(c,{win:isWinCard,sm:false});
       });
       sdHTML+='</div>';
       sdHTML+='</div>';
     });
   } else if(isFold){
-    sdHTML+='<div class="showdown-title">결과</div>';
-    sdHTML+='<div class="showdown-player'+(isWin?' winner':'')+'">';
-    sdHTML+='<div class="sp-header"><span class="sp-name">'+(isWin?'나 (히어로)':winner.name)+' '+(isWin?'🏆 팟 획득':'팟 획득')+'</span></div>';
-    if(!isWin){
+    sdHTML+='<div class="showdown-title">폴드 결과</div>';
+    // 폴드 시 모든 상대방 카드 공개
+    var foldAlive=players.filter(function(p){return!p.isHero});
+    foldAlive.forEach(function(p){
+      var isW=p===winner;
+      sdHTML+='<div class="showdown-player'+(isW?' winner':'')+'">'
+      sdHTML+='<div class="sp-header"><span class="sp-name">'+p.name+(isW?' 🏆 팟 획득':'')+' </span></div>';
       sdHTML+='<div class="sp-cards">';
-      winner.cards.forEach(function(c){sdHTML+=renderCard(c)});
+      p.cards.forEach(function(c){sdHTML+=renderCard(c)});
       sdHTML+='</div>';
-    }
+      sdHTML+='</div>';
+    });
+    // 히어로 카드도 표시
+    sdHTML+='<div class="showdown-player">';
+    sdHTML+='<div class="sp-header"><span class="sp-name">나 (폴드)</span></div>';
+    sdHTML+='<div class="sp-cards">';
+    players[0].cards.forEach(function(c){sdHTML+=renderCard(c)});
+    sdHTML+='</div>';
     sdHTML+='</div>';
   }
   $('showdownWrap').innerHTML=sdHTML;
