@@ -315,7 +315,7 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 
 /* ===== RESULT OVERLAY ===== */
 #resultOverlay{
-  position:absolute;inset:0;
+  position:fixed;inset:0;
   display:none;
   align-items:center;justify-content:center;
   z-index:50;
@@ -665,10 +665,11 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 
 /* ===== TUTORIAL OVERLAY ===== */
 #tutorialOverlay{
-  position:absolute;inset:0;z-index:80;
+  position:fixed;inset:0;z-index:90;
   display:none;
   flex-direction:column;align-items:center;justify-content:flex-end;
   background:rgba(0,0,0,.85);
+  backdrop-filter:blur(6px);
   padding:20px;
   padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));
 }
