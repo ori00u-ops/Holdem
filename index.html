@@ -2470,7 +2470,11 @@ function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinne
     // 영어/기타 문자는 '로'
     return '로';
   }
-  if(isSplitPot&&isWin){
+  var heroDidFold=players[0].folded;
+  if(heroDidFold&&isFold){
+    // 히어로가 폴드한 경우 - 절대 승리로 표시하지 않음
+    $('resultTitle').textContent='폴드 — '+(winner.name||'AI')+' 승리';
+  } else if(isSplitPot&&isWin){
     $('resultTitle').textContent='⚖️ 스플릿 팟! '+heroFinalHand.name+postfix(heroFinalHand.name)+' 무승부';
   } else if(isSplitPot&&!isWin){
     $('resultTitle').textContent='⚖️ 스플릿 팟 (패배)';
@@ -2485,7 +2489,7 @@ function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinne
   } else {
     $('resultTitle').textContent=isWin?'승리!':'패배';
   }
-  $('resultTitle').style.color=isWin?'#34d399':'#f87171';
+  $('resultTitle').style.color=(isWin&&!heroDidFold)?'#34d399':'#f87171';
   $('resultXP').textContent='+'+xp+' XP';
   
   // 팟 획득 정보 표시
@@ -2611,7 +2615,16 @@ function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinne
   
   var heroInfo=handInfo(players[0].cards);
   var coachMsg='';
-  if(isWin&&heroFinalHand){
+  var heroFolded=players[0].folded;
+  if(heroFolded&&!isWin){
+    // 히어로가 폴드한 경우
+    var winnerName=winner.name||'상대';
+    if(winnerFinalHand){
+      coachMsg=winnerName+'이(가) <strong>'+winnerFinalHand.name+'</strong>'+postfix(winnerFinalHand.name)+' 승리했습니다.<br>'+heroInfo.why;
+    } else {
+      coachMsg=winnerName+'이(가) 팟을 가져갔습니다.<br>'+heroInfo.why;
+    }
+  } else if(isWin&&heroFinalHand){
     coachMsg='<strong>'+heroFinalHand.name+'</strong>'+postfix(heroFinalHand.name)+' 승리했습니다! 🎉<br>'+heroInfo.why;
   } else if(isWin){
     coachMsg='잘 하셨습니다! '+heroInfo.why;
@@ -2768,6 +2781,11 @@ function closePanel(){
 }
 window.openPanel=openPanel;
 window.closePanel=closePanel;
+window.shareResult=shareResult;
+window.copyLink=copyLink;
+window.rechargeByFree=rechargeByFree;
+window.rechargeByShare=rechargeByShare;
+window.shareChampion=shareChampion;
 
 // ===== LEARN CONTENT =====
 function buildLearnContent(){
