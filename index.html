@@ -201,10 +201,13 @@ input[type=range]{-webkit-appearance:none;appearance:none}
   background:linear-gradient(135deg,rgba(255,255,255,.3) 0%,transparent 55%);
   pointer-events:none;
 }
-.card .rank{font-size:22px;font-weight:900;line-height:1;color:#111}
-.card .suit{font-size:18px;line-height:1;margin-top:1px;color:#111}
-.card.red .rank,.card.red .suit{color:#cc0000}
-.card.black .rank,.card.black .suit{color:#0a0a0a}
+.card .rank{font-size:22px;font-weight:900;line-height:1}
+.card .suit{font-size:18px;line-height:1;margin-top:1px}
+/* 4-color deck: 각 무늬별 고유 색상으로 초보자도 쉽게 구분 */
+.card.suit-spade .rank,.card.suit-spade .suit{color:#1a1a2e}
+.card.suit-heart .rank,.card.suit-heart .suit{color:#dc2626}
+.card.suit-diamond .rank,.card.suit-diamond .suit{color:#ea580c}
+.card.suit-club .rank,.card.suit-club .suit{color:#16a34a}
 .card.back{
   background:linear-gradient(135deg,#1e3a5f 0%,#0f2040 100%);
   border:1px solid rgba(255,255,255,.1);
@@ -231,16 +234,31 @@ input[type=range]{-webkit-appearance:none;appearance:none}
   to{opacity:1;transform:scale(1) rotate(0) translateY(0)}
 }
 /* 히어로 카드 크게 */
-#heroCards .card{width:64px;height:92px}
-#heroCards .card .rank{font-size:28px}
-#heroCards .card .suit{font-size:22px}
+/* 현재 패 표시 (게임 중) */
+#currentHandBadge{
+  text-align:center;margin-bottom:4px;
+  font-size:11px;font-weight:800;color:var(--yellow2);
+  background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);
+  border-radius:12px;padding:3px 10px;display:inline-block;
+}
+#heroCards .card{width:72px;height:100px}
+#heroCards .card .rank{font-size:32px}
+#heroCards .card .suit{font-size:24px}
+/* 보드 카드 크게 */
+#boardCards .card{width:50px;height:72px}
+#boardCards .card .rank{font-size:22px}
+#boardCards .card .suit{font-size:18px}
+/* 결과 화면 보드 카드 */
+.result-board-cards .card{width:52px;height:74px}
+.result-board-cards .card .rank{font-size:22px}
+.result-board-cards .card .suit{font-size:18px}
 
 /* ===== HERO AREA ===== */
 #heroArea{
   background:rgba(0,0,0,.6);backdrop-filter:blur(12px);
   border-top:1px solid rgba(255,255,255,.1);
   padding:10px 14px 8px;
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
   position:relative;z-index:5;flex-shrink:0;
 }
 #heroCards{display:flex;gap:8px;align-items:center;position:relative}
@@ -464,6 +482,11 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 .showdown-title{font-size:12px;font-weight:700;color:var(--yellow2);letter-spacing:.08em;margin-bottom:8px}
 .sp-best5{display:flex;align-items:center;gap:3px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border2)}
 .sp-best5-label{font-size:9px;font-weight:700;color:var(--txt3);white-space:nowrap;margin-right:2px}
+.sd-explain{
+  background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);border-radius:8px;
+  padding:8px 12px;margin-bottom:10px;font-size:12px;font-weight:700;color:var(--blue2);
+  text-align:center;line-height:1.5;
+}
 .showdown-player{
   background:var(--bg3);border:1px solid var(--border2);border-radius:10px;
   padding:10px;margin-bottom:6px;
@@ -613,6 +636,7 @@ input[type=range]{-webkit-appearance:none;appearance:none}
     </div>
     <div id="heroArea">
       <div id="heroCards" style="position:relative"></div>
+      <div style="text-align:center;width:100%"><span id="currentHandBadge" style="display:none"></span></div>
       <div id="heroInfo">
         <div id="heroHandLabel" style="display:flex;align-items:center;gap:6px">—<span id="heroPosTag" style="font-size:9px;font-weight:900;padding:2px 6px;border-radius:10px;background:var(--bg3);color:var(--blue2);border:1px solid var(--border2)"></span></div>
         <div id="heroMade">아직 공용 카드 없음</div>
@@ -830,15 +854,21 @@ function makeDeck(){
 function deal(){return deck.pop()}
 
 // ===== CARD RENDERING =====
-function suitColor(s){return(s==='♥'||s==='♦')?'red':'black'}
+function suitClass(s){
+  if(s==='♠')return'suit-spade';
+  if(s==='♥')return'suit-heart';
+  if(s==='♦')return'suit-diamond';
+  if(s==='♣')return'suit-club';
+  return'suit-spade';
+}
 function renderCard(c,opts){
   opts=opts||{};
   if(opts.back){
     return'<div class="card'+(opts.sm?' sm':'')+(opts.deal?' deal':'')+' back"><span class="suit">◆</span></div>';
   }
   if(!c)return'<div class="card'+(opts.sm?' sm':'')+' back"><span class="suit">◆</span></div>';
-  var col=suitColor(c.s);
-  var cls='card '+col+(opts.sm?' sm':'')+(opts.win?' win':'')+(opts.deal?' deal':'');
+  var sc=suitClass(c.s);
+  var cls='card '+sc+(opts.sm?' sm':'')+(opts.win?' win':'')+(opts.deal?' deal':'');
   return'<div class="'+cls+'"><span class="rank">'+c.r+'</span><span class="suit">'+c.s+'</span></div>';
 }
 
@@ -952,7 +982,18 @@ function aiDecide(p,need,pot,streetName){
   if(p.folded||p.stack<=0){p.folded=true;return;}
   
   var style=p.style||'TAG';
-  var str=handStrength(p.cards); // 0~1
+  var str=handStrength(p.cards); // 0~1 (프리플럍 기준)
+  
+  // 포스트플럍: 보드 카드를 포함한 실제 핸드 강도로 판단
+  if(board.length>=3){
+    var made=bestHand(p.cards.concat(board));
+    if(made){
+      // 랭크 기반 강도 보정 (0~1)
+      var rankBonus=[0, 0.35, 0.45, 0.55, 0.62, 0.70, 0.78, 0.85, 0.92, 0.97];
+      str=Math.max(str, rankBonus[made.rank]||0);
+    }
+  }
+  
   var r=Math.random();
   var ratio=need>0?need/p.stack:0;
   
@@ -999,8 +1040,8 @@ function aiDecide(p,need,pot,streetName){
         p.folded=true;p.action='폴드';
       } else {
         // 경계 — 스타일에 따라
-        if(style==='LAG'&&r<0.5)postBet_ai(p,need,'콜');
-        else p.folded=true;p.action='폴드';
+        if(style==='LAG'&&r<0.5){postBet_ai(p,need,'콜');}
+        else{p.folded=true;p.action='폴드';}
       }
     } else {
       // 작은 베팅 — 대부분 콜
@@ -1225,6 +1266,17 @@ function renderGame(coachMsg){
     madeStr+=' · 아웃츠 '+outsInfo.outs+'장('+pct+'%)';
   }
   $('heroMade').textContent=madeStr;
+  
+  // 현재 패 배지 업데이트 (보드 카드 있을 때만)
+  var handBadge=$('currentHandBadge');
+  if(handBadge){
+    if(made){
+      handBadge.textContent='🃏 '+made.name;
+      handBadge.style.display='inline-block';
+    } else {
+      handBadge.style.display='none';
+    }
+  }
   $('heroStackVal').textContent=fmt(hero.stack);
   // 스택 위험 경고
   var stackEl=$('heroStackVal');
@@ -1525,6 +1577,21 @@ function showResult(isWin,winner,xp,isFold,showdownResults){
   var sdHTML='';
   if(!isFold&&showdownResults&&showdownResults.length>0){
     sdHTML+='<div class="showdown-title">🃏 쇼다운 결과</div>';
+    
+    // 승리 이유 설명 (학습용)
+    if(showdownResults.length>=2){
+      var w=showdownResults[0], l=showdownResults[1];
+      if(w.hand&&l.hand){
+        var explain='';
+        if(w.hand.rank!==l.hand.rank){
+          explain=w.hand.name+' > '+l.hand.name+' (더 높은 족보)';
+        } else {
+          explain='같은 '+w.hand.name+' — 더 높은 카드(키커)로 승리';
+        }
+        sdHTML+='<div class="sd-explain">💡 '+explain+'</div>';
+      }
+    }
+    
     showdownResults.forEach(function(r,idx){
       var isW=idx===0;
       var winCards=isW&&r.hand&&r.hand.bestCards?r.hand.bestCards:[];
