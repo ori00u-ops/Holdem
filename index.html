@@ -203,6 +203,11 @@ input[type=range]{-webkit-appearance:none;appearance:none}
   pointer-events:none;
 }
 .card .rank{font-size:22px;font-weight:900;line-height:1}
+.card .rank.r10{font-size:18px}
+#heroCards .card .rank.r10{font-size:20px}
+#boardCards .card .rank.r10{font-size:18px}
+.card.sm .rank.r10{font-size:12px}
+.sp-7cards .card.sm .rank.r10{font-size:11px}
 .card .suit{font-size:18px;line-height:1;margin-top:1px}
 /* 4-color deck: 각 무늬별 고유 색상으로 초보자도 쉽게 구분 */
 .card.suit-spade .rank,.card.suit-spade .suit{color:#1a1a2e}
@@ -882,7 +887,10 @@ function renderCard(c,opts){
   if(!c)return'<div class="card'+(opts.sm?' sm':'')+' back"><span class="suit">◆</span></div>';
   var sc=suitClass(c.s);
   var cls='card '+sc+(opts.sm?' sm':'')+(opts.win?' win':'')+(opts.deal?' deal':'');
-  return'<div class="'+cls+'"><span class="rank">'+c.r+'</span><span class="suit">'+c.s+'</span></div>';
+  // 카드 표시: T를 10으로 변환 (실제 카드/대회 기준)
+  var displayRank=c.r==='T'?'10':c.r;
+  var rankCls='rank'+(c.r==='T'?' r10':'');
+  return'<div class="'+cls+'"><span class="'+rankCls+'">'+displayRank+'</span><span class="suit">'+c.s+'</span></div>';
 }
 
 // ===== HAND EVALUATION =====
@@ -969,7 +977,10 @@ function handStrength(cards){
 function handLabel(cs){
   var a=cs.slice().sort(function(x,y){return y.v-x.v});
   var s=a[0].s===a[1].s,p=a[0].r===a[1].r;
-  return a[0].r+a[1].r+(p?'':s?'s':'o');
+  // 표시용: T를 10으로 변환
+  var r0=a[0].r==='T'?'10':a[0].r;
+  var r1=a[1].r==='T'?'10':a[1].r;
+  return r0+r1+(p?'':s?'s':'o');
 }
 function handInfo(cs){
   var a=cs.slice().sort(function(x,y){return y.v-x.v}),hi=a[0],lo=a[1];
@@ -1814,7 +1825,7 @@ function showResult(isWin,winner,xp,isFold,showdownResults){
   // 복기 저장 (최종 핸드 이름 포함)
   var review={
     hand:handLabel(players[0].cards),
-    board:board.map(function(c){return c.r+c.s}).join(' '),
+    board:board.map(function(c){return (c.r==='T'?'10':c.r)+c.s}).join(' '),
     result:isWin?'win':isFold?'fold':'lose',
     info:heroInfo.tier,
     winner:winner.name||'나',
@@ -2152,7 +2163,9 @@ function buildHandChart(){
       else if(playable.indexOf(hand)>=0)cls='hc-cell playable';
       else if(marginal.indexOf(hand)>=0)cls='hc-cell marginal';
       
-      var label=i===j?r1:(i<j?r1+r2:r2+r1);
+      // 표시용: T를 10으로 변환
+      var d1=r1==='T'?'10':r1, d2=r2==='T'?'10':r2;
+      var label=i===j?d1:(i<j?d1+d2:d2+d1);
       html+='<div class="'+cls+'" title="'+hand+'">'+label+'</div>';
     }
   }
