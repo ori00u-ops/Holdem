@@ -182,11 +182,22 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 .dealer-btn{
   position:absolute;top:-6px;right:2px;
   background:var(--yellow);color:#000;
-  width:18px;height:18px;border-radius:50%;
+  width:20px;height:20px;border-radius:50%;
   font-size:9px;font-weight:900;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 6px rgba(0,0,0,.5);z-index:2;
+  border:2px solid rgba(0,0,0,.3);
 }
+.sb-badge,.bb-badge{
+  position:absolute;top:-6px;
+  width:20px;height:20px;border-radius:50%;
+  font-size:8px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.5);z-index:2;
+  border:2px solid rgba(0,0,0,.3);
+}
+.sb-badge{right:24px;background:#60a5fa;color:#fff;}
+.bb-badge{right:46px;background:#f87171;color:#fff;}
 .opp-bet{
   position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);
   background:var(--yellow);color:#000;
@@ -988,16 +999,32 @@ function activePlayerCount(){
 function isEliminated(idx){
   return eliminatedPlayers.indexOf(idx)>=0;
 }
+// === 하루 3회 무료 재시작 시스템 (WSOP 토너먼트 리바이) ===
+var MAX_DAILY_RECHARGES=3;
+
+function getTodayKey(){
+  var d=new Date();
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+function getDailyRechargeCount(){
+  var data=JSON.parse(localStorage.getItem('holdem_dailyRecharge')||'{}');
+  var today=getTodayKey();
+  return data[today]||0;
+}
+function useDailyRecharge(){
+  var data=JSON.parse(localStorage.getItem('holdem_dailyRecharge')||'{}');
+  var today=getTodayKey();
+  // 어제 이전 데이터 정리
+  Object.keys(data).forEach(function(k){if(k!==today)delete data[k];});
+  data[today]=(data[today]||0)+1;
+  localStorage.setItem('holdem_dailyRecharge',JSON.stringify(data));
+}
 function canRecharge(){
-  var lastBust=parseInt(localStorage.getItem('holdem_lastBust')||'0');
-  if(!lastBust)return true;
-  return Date.now()-lastBust>=RECHARGE_WAIT_MS;
+  return getDailyRechargeCount()<MAX_DAILY_RECHARGES;
 }
 function getRechargeRemaining(){
-  var lastBust=parseInt(localStorage.getItem('holdem_lastBust')||'0');
-  if(!lastBust)return 0;
-  var remain=RECHARGE_WAIT_MS-(Date.now()-lastBust);
-  return Math.max(0,remain);
+  // 남은 무료 충전 횟수
+  return MAX_DAILY_RECHARGES-getDailyRechargeCount();
 }
 function hasSharedForRecharge(){
   var lastShare=localStorage.getItem('holdem_shareRecharge');
@@ -1733,25 +1760,40 @@ function updateTournamentUI(){
 function showGameOver(){
   playSound('lose');
   localStorage.setItem('holdem_lastBust',Date.now().toString());
+  var remaining=getRechargeRemaining();
   var overlay=$('gameOverOverlay');
   if(!overlay){
     overlay=document.createElement('div');
     overlay.id='gameOverOverlay';
-    overlay.innerHTML='<div class="go-card">'+
-      '<div class="go-emoji">💥</div>'+
-      '<div class="go-title">토너먼트 탈락!</div>'+
-      '<div class="go-sub">스택을 모두 잃었습니다</div>'+
-      '<div class="go-stats" id="goStats"></div>'+
-      '<div class="go-recharge">'+
-        '<div class="go-recharge-title">🔄 다시 도전하기</div>'+
-        '<button class="go-btn go-share" id="goShareBtn" onclick="rechargeByShare()">📤 SNS 공유하고 즉시 충전</button>'+
-        '<div class="go-or">또는</div>'+
-        '<div class="go-timer" id="goTimer">⏳ 30분 후 자동 충전</div>'+
-        '<button class="go-btn go-wait" id="goWaitBtn" style="display:none" onclick="rechargeByWait()">✅ 충전 완료! 새 토너먼트 시작</button>'+
-      '</div>'+
-    '</div>';
     document.body.appendChild(overlay);
   }
+  
+  var html='<div class="go-card">';
+  html+='<div class="go-emoji">💥</div>';
+  html+='<div class="go-title">토너먼트 탈락!</div>';
+  html+='<div class="go-sub">스택을 모두 잃었습니다</div>';
+  html+='<div class="go-stats" id="goStats"></div>';
+  html+='<div class="go-recharge">';
+  html+='<div class="go-recharge-title">🔄 다시 도전하기</div>';
+  
+  if(canRecharge()){
+    // 무료 충전 가능
+    html+='<div style="font-size:12px;color:var(--green2);margin-bottom:8px">🎫 오늘 남은 무료 충전: <strong>'+remaining+'/'+MAX_DAILY_RECHARGES+'회</strong></div>';
+    html+='<button class="go-btn go-wait" onclick="rechargeByFree()">✅ 무료 충전으로 새 토너먼트 시작</button>';
+    html+='<div class="go-or">또는</div>';
+    html+='<button class="go-btn go-share" onclick="rechargeByShare()">📤 SNS 공유하고 충전 (횟수 안 줄어요!)</button>';
+  } else {
+    // 무료 충전 소진
+    html+='<div style="font-size:12px;color:#f87171;margin-bottom:8px">❌ 오늘 무료 충전을 모두 사용했습니다 ('+MAX_DAILY_RECHARGES+'/'+MAX_DAILY_RECHARGES+')</div>';
+    if(!hasSharedForRecharge()){
+      html+='<button class="go-btn go-share" onclick="rechargeByShare()">📤 SNS 공유하고 즉시 충전 (특별 1회)</button>';
+      html+='<div class="go-or">또는</div>';
+    }
+    html+='<div class="go-timer" style="font-size:13px;color:var(--txt3)">⏳ 내일 자정에 3회 충전됩니다</div>';
+  }
+  html+='</div></div>';
+  overlay.innerHTML=html;
+  
   // 통계 표시
   var statsEl=$('goStats');
   if(statsEl){
@@ -1760,7 +1802,6 @@ function showGameOver(){
       '<div>⭐ 누적 XP: '+fmt(progress.xp)+'</div>';
   }
   overlay.style.display='flex';
-  startRechargeTimer();
 }
 
 function showChampion(){
@@ -1801,27 +1842,11 @@ function showChampion(){
   }
 }
 
-var rechargeInterval=null;
-function startRechargeTimer(){
-  if(rechargeInterval)clearInterval(rechargeInterval);
-  var timerEl=$('goTimer');
-  var waitBtn=$('goWaitBtn');
-  var shareBtn=$('goShareBtn');
-  if(hasSharedForRecharge()){
-    if(shareBtn)shareBtn.style.display='none';
-  }
-  rechargeInterval=setInterval(function(){
-    var remain=getRechargeRemaining();
-    if(remain<=0||hasSharedForRecharge()){
-      if(timerEl)timerEl.textContent='✅ 충전 완료!';
-      if(waitBtn)waitBtn.style.display='block';
-      clearInterval(rechargeInterval);
-    } else {
-      var min=Math.floor(remain/60000);
-      var sec=Math.floor((remain%60000)/1000);
-      if(timerEl)timerEl.textContent='⏳ '+min+'분 '+sec+'초 후 자동 충전';
-    }
-  },1000);
+// === 충전 함수들 ===
+function rechargeByFree(){
+  useDailyRecharge();
+  showToast('🎫 무료 충전 완료! (남은 '+getRechargeRemaining()+'/'+MAX_DAILY_RECHARGES+'회)','rgba(16,185,129,.95)');
+  startNewTournament();
 }
 
 function rechargeByShare(){
@@ -1829,20 +1854,30 @@ function rechargeByShare(){
   var txt='🃏 홀덤 도장에서 '+tournamentHand+'핸드 만에 탈락했다... 다시 도전한다!\n\n나도 도전해보기 → https://holdem-brown.vercel.app\n\n#홀덤도장 #홀덤 #포커';
   if(navigator.share){
     navigator.share({title:'홀덤 도장',text:txt,url:'https://holdem-brown.vercel.app'}).then(function(){
+      showToast('📤 공유 완료! 충전됩니다','rgba(16,185,129,.95)');
       startNewTournament();
     }).catch(function(){
-      startNewTournament();
+      // 공유 취소해도 충전 (링크 복사 대체)
+      copyAndRecharge(txt);
     });
   } else {
-    navigator.clipboard.writeText(txt).then(function(){
-      showToast('클립보드에 복사되었습니다!');
-      startNewTournament();
-    });
+    copyAndRecharge(txt);
   }
 }
 
-function rechargeByWait(){
-  startNewTournament();
+function copyAndRecharge(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){
+      showToast('📋 링크 복사 완료! 충전됩니다','rgba(16,185,129,.95)');
+      startNewTournament();
+    }).catch(function(){
+      showToast('📤 공유 완료! 충전됩니다','rgba(16,185,129,.95)');
+      startNewTournament();
+    });
+  } else {
+    showToast('📤 공유 완료! 충전됩니다','rgba(16,185,129,.95)');
+    startNewTournament();
+  }
 }
 
 function startNewTournament(){
@@ -1924,6 +1959,8 @@ function renderGame(coachMsg){
     var isActive=!p.folded&&!handOver&&!elim;
     oppHTML+='<div class="opp'+(elim?' eliminated':p.folded?' folded':'')+(isActive?' active':'')+'">';
     if(isDealer)oppHTML+='<div class="dealer-btn">D</div>';
+    if(isSB)oppHTML+='<div class="sb-badge">SB</div>';
+    if(isBB)oppHTML+='<div class="bb-badge">BB</div>';
     oppHTML+='<div class="opp-cards">';
     oppHTML+=renderCard(null,{back:true,sm:true,deal:false});
     oppHTML+=renderCard(null,{back:true,sm:true,deal:false});
@@ -1973,10 +2010,14 @@ function renderGame(coachMsg){
   }
   
   // Hero
+  var heroIsSB=(dealer+1)%players.length===0;
+  var heroIsBB=(dealer+2)%players.length===0;
   if(hero.cards.length>=2){
     var hHTML='';
-    // 딕러 버튼은 heroCards 컨테이너 위에 절대 포지션으로 표시 (flex 깨지지 않도로)
+    // 딩러/SB/BB 버튼은 heroCards 컨테이너 위에 절대 포지션으로 표시
     if(heroIsDealer)hHTML+='<div class="dealer-btn" style="position:absolute;top:-8px;left:-8px;z-index:10">D</div>';
+    if(heroIsSB)hHTML+='<div class="sb-badge" style="position:absolute;top:-8px;left:-8px;z-index:10">SB</div>';
+    if(heroIsBB)hHTML+='<div class="bb-badge" style="position:absolute;top:-8px;left:-8px;z-index:10">BB</div>';
     hHTML+=renderCard(hero.cards[0],{deal:true});
     hHTML+=renderCard(hero.cards[1],{deal:true});
     $('heroCards').innerHTML=hHTML;
@@ -2308,11 +2349,20 @@ function nextStreet(){
 // ===== FINISH =====
 function finishFold(){
   handOver=true;
-  var winner=players.filter(function(p){return!p.folded})[0];
-  if(!winner)winner=players[0];
+  var alive=players.filter(function(p){return!p.folded});
+  // 아무도 안 남으면 마지막으로 폴드하지 않은 AI를 찾음
+  var winner;
+  if(alive.length>0){
+    winner=alive[0];
+  } else {
+    // 모두 폴드된 경우: 마지막 폴드한 AI에게 팟 지급 (히어로 제외)
+    var lastAI=players.filter(function(p,i){return i>0}).pop();
+    winner=lastAI||players[1];
+  }
   winner.stack+=pot;
   
-  var isHeroWin=winner===players[0];
+  // 히어로가 폴드했으면 절대 승리 아님
+  var isHeroWin=(winner===players[0])&&(!players[0].folded);
   
   // 스트릭 시스템
   if(isHeroWin){
@@ -2347,10 +2397,28 @@ function showdown(){
   });
   results.sort(function(a,b){return cmpHand(b.hand,a.hand)});
   
-  var winner=results[0];
-  winner.player.stack+=pot;
+  // === WSOP 룰: 스플릿 팟 (무승부) 처리 ===
+  // 동일한 핸드 강도를 가진 플레이어들을 찾음
+  var winners=[results[0]];
+  for(var i=1;i<results.length;i++){
+    if(cmpHand(results[0].hand,results[i].hand)===0){
+      winners.push(results[i]);
+    } else {
+      break;
+    }
+  }
   
-  var isHeroWin=winner.player===players[0];
+  var isSplitPot=winners.length>1;
+  var share=Math.floor(pot/winners.length);
+  var remainder=pot-(share*winners.length); // 나머지 칩은 포지션 순서로 첫번째 승자에게 (WSOP 룰)
+  
+  winners.forEach(function(w,idx){
+    var amt=share+(idx===0?remainder:0);
+    w.player.stack+=amt;
+  });
+  
+  // 히어로가 승자 중 하나인지 확인
+  var isHeroWin=winners.some(function(w){return w.player===players[0]});
   
   // 스트릭 시스템
   if(isHeroWin){
@@ -2373,13 +2441,16 @@ function showdown(){
   saveProgress();
   
   if(isHeroWin)spawnChips(true);
-  showResult(isHeroWin,winner.player,xp,false,results);
+  if(isSplitPot){
+    showToast('⚖️ 스플릿 팟! '+winners.length+'명이 팟을 나눔니다 (각 '+fmt(share)+')','rgba(251,191,36,.95)');
+  }
+  showResult(isHeroWin,winners[0].player,xp,false,results,isSplitPot,winners);
   renderGame('');
 }
 
 // ===== RESULT DISPLAY =====
-function showResult(isWin,winner,xp,isFold,showdownResults){
-  $('resultEmoji').textContent=isWin?'🏆':'😔';
+function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinners){
+  $('resultEmoji').textContent=isSplitPot&&isWin?'⚖️':isWin?'🏆':'😔';
   playSound(isWin?'win':'lose');
   
   // 최종 핸드 이름을 결과 제목에 표시
@@ -2399,7 +2470,11 @@ function showResult(isWin,winner,xp,isFold,showdownResults){
     // 영어/기타 문자는 '로'
     return '로';
   }
-  if(isWin&&heroFinalHand){
+  if(isSplitPot&&isWin){
+    $('resultTitle').textContent='⚖️ 스플릿 팟! '+heroFinalHand.name+postfix(heroFinalHand.name)+' 무승부';
+  } else if(isSplitPot&&!isWin){
+    $('resultTitle').textContent='⚖️ 스플릿 팟 (패배)';
+  } else if(isWin&&heroFinalHand){
     $('resultTitle').textContent=heroFinalHand.name+postfix(heroFinalHand.name)+' 승리!';
   } else if(isWin&&isFold){
     $('resultTitle').textContent='상대 폴드! 승리!';
@@ -2414,7 +2489,14 @@ function showResult(isWin,winner,xp,isFold,showdownResults){
   $('resultXP').textContent='+'+xp+' XP';
   
   // 팟 획득 정보 표시
-  if(isWin){
+  if(isSplitPot&&isWin){
+    var myShare=Math.floor(pot/splitWinners.length);
+    $('resultSub').textContent='⚖️ 팟 '+fmt(pot)+' 중 '+fmt(myShare)+' 획득 (스플릿)';
+    $('resultSub').style.color='var(--yellow2)';
+  } else if(isSplitPot&&!isWin){
+    $('resultSub').textContent='⚖️ 팟 '+fmt(pot)+' 스플릿 (미포함)';
+    $('resultSub').style.color='#f87171';
+  } else if(isWin){
     $('resultSub').textContent='팟 '+fmt(pot)+' 획득!';
     $('resultSub').style.color='var(--yellow2)';
   } else if(isFold){
