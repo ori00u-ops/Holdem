@@ -1349,13 +1349,19 @@ function renderGame(coachMsg){
     }
   }
   
-  $('coachText').innerHTML='<strong>'+actKo(info.act)+'</strong> 추천'+oddsStr+posStr+'<br>'+tipMsg+readingHint;
+  // 폴드 상태일 때는 코치 메시지를 관전 모드로 변경
+  if(hero.folded&&!handOver){
+    $('coachText').innerHTML='<span style="color:#ef4444;font-weight:900">폴드</span> — AI들의 플레이를 관전하세요.'+readingHint;
+  } else {
+    $('coachText').innerHTML='<strong>'+actKo(info.act)+'</strong> 추천'+oddsStr+posStr+'<br>'+tipMsg+readingHint;
+  }
   
-  // Buttons
-  $('foldBtn').disabled=handOver;
-  $('checkBtn').disabled=handOver||need>0;
-  $('callBtn').disabled=handOver||need<=0;
-  $('betBtn').disabled=handOver||hero.stack<=0;
+  // Buttons - 폴드했거나 핸드가 끝났으면 모든 버튼 비활성화
+  var heroFolded=hero.folded;
+  $('foldBtn').disabled=handOver||heroFolded;
+  $('checkBtn').disabled=handOver||heroFolded||need>0;
+  $('callBtn').disabled=handOver||heroFolded||need<=0;
+  $('betBtn').disabled=handOver||heroFolded||hero.stack<=0;
   $('nextBtn').className=handOver?'show':'';
   
   // Quick bet buttons
@@ -1397,6 +1403,7 @@ function setBetAmount(amt){
 function heroAct(action){
   if(handOver)return;
   var hero=players[0];
+  if(hero.folded)return; // 폴드 후에는 어떤 액션도 불가
   var need=Math.max(0,currentBet-hero.round);
   
   $('betSliderWrap').classList.remove('show');
@@ -1405,6 +1412,9 @@ function heroAct(action){
   
   if(action==='fold'){
     hero.folded=true;hero.action='폴드';
+    // 폴드 후 AI들끼리 남은 스트릿 자동 진행
+    autoFinishAfterFold();
+    return;
   } else if(action==='check'){
     if(need>0)return;
     hero.action='체크';hero.round=0;
@@ -1452,6 +1462,82 @@ function heroAct(action){
   }
 }
 
+// ===== AUTO FINISH AFTER HERO FOLD =====
+function autoFinishAfterFold(){
+  // 히어로가 폴드한 후 AI들끼리 남은 스트릿을 자동으로 진행
+  
+  // 남은 AI 수 체크
+  var aiAlive=players.filter(function(p,i){return i>0&&!p.folded});
+  if(aiAlive.length<=1){
+    // AI가 1명 이하면 바로 종료
+    finishFold();
+    return;
+  }
+  
+  // 현재 스트릿의 AI 베팅 라운드 완료
+  function aiStreetBetting(){
+    players.forEach(function(p){p.round=0});
+    currentBet=0;
+    for(var i=1;i<4;i++){
+      var p=players[i];
+      if(p.folded)continue;
+      aiDecide(p,0,pot,street);
+    }
+    // AI 레이즈에 대한 리액션 (최대 3라운드)
+    for(var round=0;round<3;round++){
+      var needsAction=false;
+      for(var i=1;i<4;i++){
+        var p=players[i];
+        if(p.folded)continue;
+        var pNeed=Math.max(0,currentBet-p.round);
+        if(pNeed>0){needsAction=true;aiDecide(p,pNeed,pot,street);}
+      }
+      if(!needsAction)break;
+    }
+  }
+  
+  // 남은 스트릿 순서대로 진행
+  var streets=['preflop','flop','turn','river'];
+  var currentIdx=streets.indexOf(street);
+  
+  for(var s=currentIdx;s<3;s++){
+    // 다음 스트릿으로 이동
+    if(s===currentIdx){
+      // 현재 스트릿은 이미 진행 중이므로 다음으로
+    }
+    if(streets[s]==='preflop'){
+      street='flop';
+      board.push(deal(),deal(),deal());
+    } else if(streets[s]==='flop'){
+      street='turn';
+      board.push(deal());
+    } else if(streets[s]==='turn'){
+      street='river';
+      board.push(deal());
+    }
+    
+    // 살아있는 AI 수 체크
+    var alive=players.filter(function(p,i){return i>0&&!p.folded});
+    if(alive.length<=1){
+      finishFold();
+      return;
+    }
+    
+    // AI 베팅 라운드
+    aiStreetBetting();
+    
+    // 다시 살아있는 AI 수 체크
+    alive=players.filter(function(p,i){return i>0&&!p.folded});
+    if(alive.length<=1){
+      finishFold();
+      return;
+    }
+  }
+  
+  // 리버까지 완료 → 쇼다운 (히어로 제외)
+  showdown();
+}
+
 // ===== STREET PROGRESSION =====
 function nextStreet(){
   if(aliveCount()<=1){finishFold();return;}
@@ -1476,6 +1562,18 @@ function nextStreet(){
     var p=players[i];
     if(p.folded)continue;
     aiDecide(p,0,pot,street);
+  }
+  // AI 레이즈에 대한 다른 AI들의 리액션 (최대 2라운드)
+  for(var round=0;round<2;round++){
+    var needsAction=false;
+    for(var i=1;i<4;i++){
+      var p=players[i];
+      if(p.folded)continue;
+      var pNeed=Math.max(0,currentBet-p.round);
+      if(pNeed>0){needsAction=true;aiDecide(p,pNeed,pot,street);}
+    }
+    if(!needsAction)break;
+    if(aliveCount()<=1){finishFold();return;}
   }
 }
 
