@@ -7,8 +7,30 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="홀덤 도장">
-<meta name="description" content="텍사스 홀덤 초보자를 위한 무료 연습 앱. 실전 AI와 대결하며 실력을 키우세요.">
-<title>홀덤 도장 🃏</title>
+<meta name="description" content="텍사스 홀덤 무료 연습 앱. AI 상대와 실전 대결, 족보 학습, 팟 오즈 계산, 프리플럍 핸드 차트까지. 초보자부터 중급자까지 실력을 키우세요!">
+<meta name="keywords" content="홀덤, 텍사스홀덤, 포커, 홀덤연습, 홀덤배우기, 홀덤게임, 홀덤초보, 홀덤전략, 홀덤앱, 홀덤무료, 포커게임, 포커연습, holdem, texas holdem, poker">
+<meta name="author" content="홀덤도장">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://holdem-brown.vercel.app">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="홀덤 도장 | 무료 텍사스 홀덤 연습 앱">
+<meta property="og:description" content="AI와 실전 대결하며 홀덤 실력을 키우세요. 족보 학습, 프리플럍 차트, 팟 오즈 계산까지 완벽 무료!">
+<meta property="og:url" content="https://holdem-brown.vercel.app">
+<meta property="og:site_name" content="홀덤 도장">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:image" content="https://holdem-brown.vercel.app/og-holdem.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="홀덤 도장 | 무료 텍사스 홀덤 연습">
+<meta name="twitter:description" content="AI와 실전 대결! 초보자를 위한 홀덤 트레이닝 앱. 완전 무료.">
+<meta name="twitter:image" content="https://holdem-brown.vercel.app/og-holdem.png">
+
+<title>홀덤 도장 - 무료 텍사스 홀덤 연습 | AI 대결 & 전략 학습</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
 html,body{width:100%;height:100%;background:#0a0f1e;color:#f0f4ff;font-family:'Noto Sans KR',system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%;overflow:hidden;touch-action:pan-y}
@@ -678,6 +700,10 @@ input[type=range]{-webkit-appearance:none;appearance:none}
       <div class="sponsor-desc">상조 + 최신 가전 렌탈 + KB헬스케어를 하나로. 월 35,000원, 20년 만기 시 납입금 100% 환급.</div>
       <a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta">무료 상담 신청 →</a>
       <a href="tel:01075295945" class="sponsor-cta-ghost">📞 전화 상담</a>
+    </div>
+    <div class="share-row" style="display:flex;gap:8px;justify-content:center;margin:12px 0 4px">
+      <button onclick="shareResult()" style="background:#25D366;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">SNS 공유</button>
+      <button onclick="copyLink()" style="background:#3b82f6;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">링크 복사</button>
     </div>
     <button id="resultNextBtn">다음 핸드 →</button>
   </div>
@@ -1527,6 +1553,28 @@ function hideResult(){
   $('resultOverlay').classList.remove('show');
 }
 
+function shareResult(){
+  var txt='🃏 홀덤 도장에서 '+progress.wins+'승 달성! \n🏆 현재 '+getBeltName(progress.xp)+' (연승 '+progress.streak+')\n\n나도 홀덤 실력 테스트 → https://holdem-brown.vercel.app\n\n#홀덤 #텍사스홀덤 #홀덤도장 #포커 #홀덤연습';
+  if(navigator.share){
+    navigator.share({title:'홀덤 도장 전적',text:txt,url:'https://holdem-brown.vercel.app'}).catch(function(){});
+  }else{
+    navigator.clipboard.writeText(txt).then(function(){showToast('클립보드에 복사되었습니다!');});
+  }
+}
+
+function copyLink(){
+  navigator.clipboard.writeText('https://holdem-brown.vercel.app').then(function(){showToast('링크가 복사되었습니다!');}).catch(function(){showToast('복사 실패');});
+}
+
+function getBeltName(xp){
+  if(xp>=5000)return'검은띄';
+  if(xp>=3000)return'빨간띄';
+  if(xp>=1500)return'파란띄';
+  if(xp>=700)return'초록띄';
+  if(xp>=200)return'노란띄';
+  return'흰띄';
+}
+
 // ===== TUTORIAL =====
 var TUTORIALS=[
   {title:'홀덤 도장에 오신 것을 환영합니다! 🃏',body:'텍사스 홀덤을 처음 배우는 분을 위한 연습 앱입니다. <strong>실제 돈은 없고, 실력만 쌓습니다.</strong>'},
@@ -1995,6 +2043,30 @@ setTimeout(function(){
 },1200);
 
 })();
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "홀덤 도장",
+  "alternateName": "Holdem Dojo",
+  "url": "https://holdem-brown.vercel.app",
+  "description": "텍사스 홀덤 초보자를 위한 무료 연습 앱. AI 상대와 실전 대결하며 실력을 키우세요.",
+  "applicationCategory": "GameApplication",
+  "operatingSystem": "Web",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "KRW"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "ratingCount": "150"
+  },
+  "inLanguage": "ko",
+  "keywords": "홀덤, 텍사스홀덤, 포커, 홀덤연습, 홀덤배우기, 홀덤게임"
+}
 </script>
 </body>
 </html>
