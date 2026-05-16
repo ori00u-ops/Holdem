@@ -125,21 +125,22 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 /* ===== OPPONENTS ===== */
 #opponents{
   display:flex;justify-content:space-around;align-items:flex-start;
-  padding:10px 8px 4px;gap:4px;position:relative;z-index:1;
+  padding:6px 4px 2px;gap:2px;position:relative;z-index:1;
+  flex-wrap:wrap;
 }
 .opp{
-  display:flex;flex-direction:column;align-items:center;gap:4px;
-  min-width:0;flex:1;max-width:110px;position:relative;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  min-width:0;flex:1 1 18%;max-width:80px;position:relative;
 }
 .opp-cards{display:flex;gap:3px;justify-content:center}
 .opp-info{
   background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);
-  border-radius:10px;padding:4px 8px;text-align:center;min-width:0;width:100%;
+  border-radius:8px;padding:3px 5px;text-align:center;min-width:0;width:100%;
   transition:border-color .3s,background .3s;
 }
 .opp.active .opp-info{border-color:var(--yellow);background:rgba(245,158,11,.15);
   box-shadow:0 0 12px rgba(245,158,11,.2);}
-.opp-name{font-size:10px;font-weight:800;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opp-name{font-size:9px;font-weight:800;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opp-role{font-size:9px;color:var(--yellow2);font-weight:700}
 .opp-stack{font-size:11px;font-weight:900;color:var(--green2)}
 .opp-style{font-size:8px;color:var(--txt3);margin-top:1px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -771,8 +772,8 @@ var SUITS=['♠','♥','♦','♣'];
 var RANKS=['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
 var RANK_VAL={};RANKS.forEach(function(r,i){RANK_VAL[r]=i+2});
 var STORE='holdem_dojo_v8';
-var AI_NAMES=['AI 민준','AI 서아','AI 도윤'];
-var AI_STYLES=['TAG','LAG','TIGHT']; // Tight-Aggressive, Loose-Aggressive, Tight-Passive
+var AI_NAMES=['AI 민준','AI 서아','AI 도윤','AI 하은','AI 시우'];
+var AI_STYLES=['TAG','LAG','TIGHT','LAG','TAG']; // 6-max: 다양한 스타일 배치
 var AI_STYLE_DESC={
   'TAG':{label:'타이트 공격형',emoji:'🎯',desc:'강한 패만 플레이하고 공격적으로 베팅',hint:'이 플레이어가 레이즈하면 강한 패일 확률 높음'},
   'LAG':{label:'루즈 공격형',emoji:'🔥',desc:'다양한 패로 공격적으로 플레이. 블러프 빈도 높음',hint:'레이즈해도 블러프일 수 있음. 콜로 트랩 가능'},
@@ -1006,53 +1007,86 @@ function aiDecide(p,need,pot,streetName){
   if(p.folded||p.stack<=0){p.folded=true;return;}
   
   var style=p.style||'TAG';
-  var str=handStrength(p.cards); // 0~1 (프리플럍 기준)
+  var str=handStrength(p.cards); // 0~1 (프리플랍 기준)
   
-  // 포스트플럍: 보드 카드를 포함한 실제 핸드 강도로 판단
+  // 포스트플랍: 보드 카드를 포함한 실제 핸드 강도로 판단
+  var madeRank=0;
   if(board.length>=3){
     var made=bestHand(p.cards.concat(board));
     if(made){
-      // 랭크 기반 강도 보정 (0~1)
+      madeRank=made.rank; // 0=하이카드 ~ 9=로열플러시
       var rankBonus=[0, 0.35, 0.45, 0.55, 0.62, 0.70, 0.78, 0.85, 0.92, 0.97];
-      str=Math.max(str, rankBonus[made.rank]||0);
+      str=Math.max(str, rankBonus[madeRank]||0);
     }
   }
   
   var r=Math.random();
-  var ratio=need>0?need/p.stack:0;
+  var ratio=need>0?need/p.stack:0; // 스택 대비 콜 비율
+  var potOdds=need>0?need/(pot+need):0; // 팟 오즈
   
-  // 스타일별 임계값 조정
+  // 스타일별 기본 임계값
   var foldThresh, callThresh, raiseThresh;
   if(style==='TAG'){
-    foldThresh=0.35;callThresh=0.55;raiseThresh=0.70;
+    foldThresh=0.30;callThresh=0.48;raiseThresh=0.65;
   } else if(style==='LAG'){
-    foldThresh=0.20;callThresh=0.40;raiseThresh=0.60;
+    foldThresh=0.18;callThresh=0.35;raiseThresh=0.55;
   } else { // TIGHT
-    foldThresh=0.45;callThresh=0.65;raiseThresh=0.80;
+    foldThresh=0.40;callThresh=0.58;raiseThresh=0.75;
   }
   
   // 블러프 확률 (LAG > TAG > TIGHT)
-  var bluffProb=style==='LAG'?0.20:style==='TAG'?0.10:0.05;
+  var bluffProb=style==='LAG'?0.25:style==='TAG'?0.12:0.05;
   var isBluff=r<bluffProb;
-  var effectiveStr=isBluff?0.75:str;
+  var effectiveStr=isBluff?Math.max(str,0.70):str;
+  
+  // === 팟 오즈 기반 판단 ===
+  // 올인/큰 베팅에도 팟 오즈가 좋으면 콜해야 함
   
   if(need===0){
     // 체크 or 베팅
     if(effectiveStr>=raiseThresh&&p.stack>40){
-      var ba=Math.min(Math.floor(pot*(0.5+Math.random()*0.3)/10)*10||40,p.stack);
+      var ba=Math.min(Math.floor(pot*(0.5+Math.random()*0.5)/10)*10||40,p.stack);
       postBet_ai(p,ba,'베팅');
-    } else if(effectiveStr>=callThresh&&style==='LAG'&&p.stack>40){
-      var ba2=Math.min(Math.floor(pot*0.4/10)*10||30,p.stack);
+    } else if(effectiveStr>=callThresh&&(style==='LAG'||r<0.3)&&p.stack>40){
+      var ba2=Math.min(Math.floor(pot*(0.3+Math.random()*0.4)/10)*10||30,p.stack);
       postBet_ai(p,ba2,'베팅');
     } else {
       p.action='체크';p.round=0;
     }
   } else {
-    if(ratio>0.6){
-      // 큰 베팅 — 강한 패나 올인 상황
-      if(effectiveStr>=0.75){postBet_ai(p,need,'콜');}
-      else{p.folded=true;p.action='폴드';}
-    } else if(ratio>0.3){
+    // === 올인/큰 베팅 대응 (핵심 개선) ===
+    if(ratio>0.5){
+      // 올인 또는 스택의 50% 이상 베팅
+      // 팟 오즈 계산: 팟이 크면 콜하는 게 수학적으로 맞음
+      var shouldCall=false;
+      
+      // 강한 패 (투페어+): 무조건 콜
+      if(madeRank>=2) shouldCall=true;
+      // 원페어 이상 + 팟 오즈 좋으면 콜
+      else if(madeRank>=1 && potOdds<0.45) shouldCall=true;
+      // 프리플랍: 프리미엄 핸드는 콜
+      else if(board.length===0 && str>=0.60) shouldCall=true;
+      // 프리플랍: 강한 핸드 + 팟 오즈 좋으면 콜
+      else if(board.length===0 && str>=0.45 && potOdds<0.40) shouldCall=true;
+      // 스타일별 추가 콜 확률
+      else if(style==='LAG' && effectiveStr>=0.40 && r<0.45) shouldCall=true;
+      else if(style==='TAG' && effectiveStr>=0.50 && r<0.35) shouldCall=true;
+      else if(style==='TIGHT' && effectiveStr>=0.60 && r<0.25) shouldCall=true;
+      // 블러프 캐치: 상대가 매번 올인하면 의심하고 콜
+      else if(isBluff) shouldCall=true;
+      
+      if(shouldCall){
+        // 리레이즈 가능성 (매우 강한 패)
+        if(madeRank>=4 && p.stack>need*2 && r<0.3){
+          postBet_ai(p,p.stack,'올인');
+        } else {
+          postBet_ai(p,need,'콜');
+        }
+      } else {
+        p.folded=true;p.action='폴드';
+      }
+    } else if(ratio>0.2){
+      // 중간 베팅 (20~50% 스택)
       if(effectiveStr>=callThresh){
         if(effectiveStr>=raiseThresh&&p.stack>need*2&&r<0.4){
           var ra=Math.min(need+Math.floor(pot*0.5/10)*10,p.stack);
@@ -1060,15 +1094,17 @@ function aiDecide(p,need,pot,streetName){
         } else {
           postBet_ai(p,need,'콜');
         }
-      } else if(effectiveStr<foldThresh){
-        p.folded=true;p.action='폴드';
-      } else {
+      } else if(effectiveStr>=foldThresh){
         // 경계 — 스타일에 따라
-        if(style==='LAG'&&r<0.5){postBet_ai(p,need,'콜');}
+        if(style==='LAG'&&r<0.55){postBet_ai(p,need,'콜');}
+        else if(style==='TAG'&&r<0.35){postBet_ai(p,need,'콜');}
+        else if(r<0.20){postBet_ai(p,need,'콜');}
         else{p.folded=true;p.action='폴드';}
+      } else {
+        p.folded=true;p.action='폴드';
       }
     } else {
-      // 작은 베팅 — 대부분 콜
+      // 작은 베팅 (<20% 스택) — 대부분 콜
       if(effectiveStr>=foldThresh){
         if(effectiveStr>=raiseThresh&&p.stack>need*2&&r<0.35){
           var ra2=Math.min(need+Math.floor(pot*0.6/10)*10,p.stack);
@@ -1077,7 +1113,7 @@ function aiDecide(p,need,pot,streetName){
           postBet_ai(p,need,'콜');
         }
       } else {
-        if(r<0.3)postBet_ai(p,need,'콜');
+        if(r<0.4)postBet_ai(p,need,'콜');
         else{p.folded=true;p.action='폴드';}
       }
     }
@@ -1097,7 +1133,9 @@ function initPlayers(){
     {name:'나',stack:1000,cards:[],round:0,action:'',folded:false,isHero:true,style:'HERO'},
     {name:AI_NAMES[0],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[0]},
     {name:AI_NAMES[1],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[1]},
-    {name:AI_NAMES[2],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[2]}
+    {name:AI_NAMES[2],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[2]},
+    {name:AI_NAMES[3],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[3]},
+    {name:AI_NAMES[4],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[4]}
   ];
 }
 
@@ -1108,7 +1146,8 @@ function newHand(resetAll){
     showToast('새 게임 시작!','rgba(59,130,246,.95)');
   }
   
-  dealer=(dealer+1)%4;
+  var N=players.length;
+  dealer=(dealer+1)%N;
   
   // 스택 0인 AI 리셋
   players.forEach(function(p,i){
@@ -1119,7 +1158,7 @@ function newHand(resetAll){
   board=[];street='preflop';pot=0;currentBet=0;handOver=false;
   players.forEach(function(p){p.cards=[];p.round=0;p.action='';p.folded=false;});
   
-  var sb=(dealer+1)%4,bb=(dealer+2)%4;
+  var sb=(dealer+1)%N,bb=(dealer+2)%N;
   var SB=10,BB=20;
   players[sb].stack-=SB;players[sb].round=SB;pot+=SB;players[sb].action='SB';
   players[bb].stack-=BB;players[bb].round=BB;pot+=BB;players[bb].action='BB';
@@ -1131,9 +1170,9 @@ function newHand(resetAll){
   }
   
   // AI 프리플랍 액션 (UTG부터)
-  var utg=(dealer+3)%4;
-  for(var step=0;step<3;step++){
-    var idx=(utg+step)%4;
+  var utg=(dealer+3)%N;
+  for(var step=0;step<N-1;step++){
+    var idx=(utg+step)%N;
     if(idx===0)continue;
     var p=players[idx];
     if(p.folded)continue;
@@ -1206,11 +1245,11 @@ function renderGame(coachMsg){
   
   // Opponents
   var oppHTML='';
-  for(var i=1;i<4;i++){
+  for(var i=1;i<players.length;i++){
     var p=players[i];
     var isDealer=i===dealer;
-    var isSB=i===(dealer+1)%4;
-    var isBB=i===(dealer+2)%4;
+    var isSB=i===(dealer+1)%players.length;
+    var isBB=i===(dealer+2)%players.length;
     var role=isDealer?'D':isSB?'SB':isBB?'BB':'';
     var isActive=!p.folded&&!handOver;
     oppHTML+='<div class="opp'+(p.folded?' folded':'')+(isActive?' active':'')+'">';
@@ -1331,7 +1370,8 @@ function renderGame(coachMsg){
   var oddsStr=need>0?' · 팟 오즈 '+potOdds+'%':'';
   
   // 포지션 정보
-  var heroPos=dealer===0?'BTN':((dealer+1)%4===0?'SB':((dealer+2)%4===0?'BB':'UTG/MP'));
+  var N=players.length;
+  var heroPos=dealer===0?'BTN':((dealer+1)%N===0?'SB':((dealer+2)%N===0?'BB':'UTG/MP'));
   var posStr=' <span style="color:var(--blue2);font-size:10px">['+heroPos+']</span>';
   
   // 상대 핸드 추측 힌트 생성
@@ -1445,11 +1485,11 @@ function heroAct(action){
   
   // AI 반응
   if(action==='bet'||action==='raise'){
-    for(var i=1;i<4;i++){
-      var p=players[i];
-      if(p.folded)continue;
-      var pNeed=Math.max(0,currentBet-p.round);
-      if(pNeed>0)aiDecide(p,pNeed,pot,street);
+  for(var i=1;i<players.length;i++){
+    var p=players[i];
+    if(p.folded)continue;
+    var pNeed=Math.max(0,currentBet-p.round);
+    if(pNeed>0)aiDecide(p,pNeed,pot,street);
     }
   }
   
@@ -1489,7 +1529,7 @@ function autoFinishAfterFold(){
   function aiStreetBetting(){
     players.forEach(function(p){p.round=0});
     currentBet=0;
-    for(var i=1;i<4;i++){
+    for(var i=1;i<players.length;i++){
       var p=players[i];
       if(p.folded)continue;
       aiDecide(p,0,pot,street);
@@ -1497,7 +1537,7 @@ function autoFinishAfterFold(){
     // AI 레이즈에 대한 리액션 (최대 3라운드)
     for(var round=0;round<3;round++){
       var needsAction=false;
-      for(var i=1;i<4;i++){
+      for(var i=1;i<players.length;i++){
         var p=players[i];
         if(p.folded)continue;
         var pNeed=Math.max(0,currentBet-p.round);
@@ -1569,7 +1609,7 @@ function nextStreet(){
   }
   
   // AI 포스트플랍 액션
-  for(var i=1;i<4;i++){
+  for(var i=1;i<players.length;i++){
     var p=players[i];
     if(p.folded)continue;
     aiDecide(p,0,pot,street);
@@ -1577,7 +1617,7 @@ function nextStreet(){
   // AI 레이즈에 대한 다른 AI들의 리액션 (최대 2라운드)
   for(var round=0;round<2;round++){
     var needsAction=false;
-    for(var i=1;i<4;i++){
+    for(var i=1;i<players.length;i++){
       var p=players[i];
       if(p.folded)continue;
       var pNeed=Math.max(0,currentBet-p.round);
