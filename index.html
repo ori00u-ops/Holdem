@@ -142,6 +142,7 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 .opp-name{font-size:10px;font-weight:800;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opp-role{font-size:9px;color:var(--yellow2);font-weight:700}
 .opp-stack{font-size:11px;font-weight:900;color:var(--green2)}
+.opp-style{font-size:8px;color:var(--txt3);margin-top:1px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opp-action{font-size:9px;color:var(--txt2);margin-top:1px;min-height:12px;font-weight:700}
 .opp-action.act-fold{color:#ef4444}
 .opp-action.act-call{color:#60a5fa}
@@ -236,14 +237,13 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 /* 히어로 카드 크게 */
 /* 현재 패 표시 (게임 중) */
 #currentHandBadge{
-  text-align:center;margin-bottom:4px;
-  font-size:11px;font-weight:800;color:var(--yellow2);
-  background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);
-  border-radius:12px;padding:3px 10px;display:inline-block;
+  font-size:10px;font-weight:800;color:var(--yellow2);
+  background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);
+  border-radius:10px;padding:2px 8px;display:inline-block;
 }
-#heroCards .card{width:72px;height:100px}
-#heroCards .card .rank{font-size:32px}
-#heroCards .card .suit{font-size:24px}
+#heroCards .card{width:56px;height:78px}
+#heroCards .card .rank{font-size:24px}
+#heroCards .card .suit{font-size:18px}
 /* 보드 카드 크게 */
 #boardCards .card{width:50px;height:72px}
 #boardCards .card .rank{font-size:22px}
@@ -257,8 +257,8 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 #heroArea{
   background:rgba(0,0,0,.6);backdrop-filter:blur(12px);
   border-top:1px solid rgba(255,255,255,.1);
-  padding:10px 14px 8px;
-  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  padding:6px 10px 4px;
+  display:flex;align-items:center;justify-content:space-between;gap:6px;
   position:relative;z-index:5;flex-shrink:0;
 }
 #heroCards{display:flex;gap:8px;align-items:center;position:relative}
@@ -480,8 +480,17 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 .result-board-cards{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .showdown-wrap{margin-bottom:12px}
 .showdown-title{font-size:12px;font-weight:700;color:var(--yellow2);letter-spacing:.08em;margin-bottom:8px}
-.sp-best5{display:flex;align-items:center;gap:3px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border2)}
-.sp-best5-label{font-size:9px;font-weight:700;color:var(--txt3);white-space:nowrap;margin-right:2px}
+/* 7장 전체 표시 레이아웃 */
+.sp-7cards{
+  display:flex;align-items:center;gap:4px;margin-top:6px;
+}
+.sp-hole,.sp-board{display:flex;flex-direction:column;align-items:center;gap:2px}
+.sp-hole .sp-cards,.sp-board .sp-cards{display:flex;gap:2px}
+.sp-7cards .card.sm{width:34px;height:48px}
+.sp-7cards .card.sm .rank{font-size:13px}
+.sp-7cards .card.sm .suit{font-size:10px}
+.sp-label{font-size:8px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em}
+.sp-plus{font-size:14px;font-weight:900;color:var(--txt3);margin:0 2px;align-self:center;margin-top:12px}
 .sd-explain{
   background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);border-radius:8px;
   padding:8px 12px;margin-bottom:10px;font-size:12px;font-weight:700;color:var(--blue2);
@@ -636,9 +645,8 @@ input[type=range]{-webkit-appearance:none;appearance:none}
     </div>
     <div id="heroArea">
       <div id="heroCards" style="position:relative"></div>
-      <div style="text-align:center;width:100%"><span id="currentHandBadge" style="display:none"></span></div>
       <div id="heroInfo">
-        <div id="heroHandLabel" style="display:flex;align-items:center;gap:6px">—<span id="heroPosTag" style="font-size:9px;font-weight:900;padding:2px 6px;border-radius:10px;background:var(--bg3);color:var(--blue2);border:1px solid var(--border2)"></span></div>
+        <div id="heroHandLabel" style="display:flex;align-items:center;gap:6px">—<span id="heroPosTag" style="font-size:9px;font-weight:900;padding:2px 6px;border-radius:10px;background:var(--bg3);color:var(--blue2);border:1px solid var(--border2)"></span> <span id="currentHandBadge" style="display:none"></span></div>
         <div id="heroMade">아직 공용 카드 없음</div>
         <div id="strengthBar" style="margin-top:4px;height:4px;border-radius:4px;background:var(--border);overflow:hidden;width:100%"><div id="strengthFill" style="height:100%;width:0%;border-radius:4px;transition:width .5s,background .5s"></div></div>
       </div>
@@ -760,6 +768,11 @@ var RANK_VAL={};RANKS.forEach(function(r,i){RANK_VAL[r]=i+2});
 var STORE='holdem_dojo_v8';
 var AI_NAMES=['AI 민준','AI 서아','AI 도윤'];
 var AI_STYLES=['TAG','LAG','TIGHT']; // Tight-Aggressive, Loose-Aggressive, Tight-Passive
+var AI_STYLE_DESC={
+  'TAG':{label:'타이트 공격형',emoji:'🎯',desc:'강한 패만 플레이하고 공격적으로 베팅',hint:'이 플레이어가 레이즈하면 강한 패일 확률 높음'},
+  'LAG':{label:'루즈 공격형',emoji:'🔥',desc:'다양한 패로 공격적으로 플레이. 블러프 빈도 높음',hint:'레이즈해도 블러프일 수 있음. 콜로 트랩 가능'},
+  'TIGHT':{label:'타이트 수비형',emoji:'🛡️',desc:'매우 신중하게 플레이. 강한 패가 아니면 폴드',hint:'이 플레이어가 콜만 해도 괜찮은 패를 가진 것'}
+};
 var BELT_XP=[0,200,600,1400,2800,5000];
 var BELT_NAMES=['흰띠','노란띠','초록띠','파란띠','빨간띠','검은띠'];
 var BELT_COLORS=['#e5e7eb','#fcd34d','#34d399','#60a5fa','#f87171','#374151'];
@@ -1197,6 +1210,11 @@ function renderGame(coachMsg){
     oppHTML+='</div>';
     oppHTML+='<div class="opp-info">';
     oppHTML+='<div class="opp-name">'+p.name+'</div>';
+    // AI 성향 배지 표시
+    var styleInfo=AI_STYLE_DESC[p.style];
+    if(styleInfo&&!p.folded){
+      oppHTML+='<div class="opp-style" title="'+styleInfo.desc+'">'+styleInfo.emoji+' '+styleInfo.label+'</div>';
+    }
     if(role)oppHTML+='<div class="opp-role">'+role+'</div>';
     oppHTML+='<div class="opp-stack">'+fmt(p.stack)+'</div>';
     var actClass='opp-action';
@@ -1305,7 +1323,33 @@ function renderGame(coachMsg){
   var heroPos=dealer===0?'BTN':((dealer+1)%4===0?'SB':((dealer+2)%4===0?'BB':'UTG/MP'));
   var posStr=' <span style="color:var(--blue2);font-size:10px">['+heroPos+']</span>';
   
-  $('coachText').innerHTML='<strong>'+actKo(info.act)+'</strong> 추천'+oddsStr+posStr+'<br>'+tipMsg;
+  // 상대 핸드 추측 힌트 생성
+  var readingHint='';
+  if(board.length>=3){
+    var activeOpps=players.filter(function(p,idx){return idx>0&&!p.folded});
+    if(activeOpps.length>0){
+      var hints=[];
+      activeOpps.forEach(function(p){
+        var sd=AI_STYLE_DESC[p.style];
+        if(!sd)return;
+        if(p.action==='레이즈'||p.action==='베팅'){
+          if(p.style==='TAG')hints.push(p.name+': 레이즈 → 강한 패 가능성 높음 ⚠️');
+          else if(p.style==='LAG')hints.push(p.name+': 레이즈 → 블러프일 수도! 판단 필요');
+          else hints.push(p.name+': 레이즈 → 매우 강한 패 확실 🚨');
+        } else if(p.action==='콜'){
+          if(p.style==='TAG')hints.push(p.name+': 콜 → 괜찮은 패, 아직 판단 중');
+          else if(p.style==='LAG')hints.push(p.name+': 콜 → 드로우 or 트랩 준비 중일 수도');
+          else hints.push(p.name+': 콜 → 신중하게 따라오는 중');
+        } else if(p.action==='체크'){
+          if(p.style==='TAG')hints.push(p.name+': 체크 → 약한 패 or 슬로우플레이');
+          else if(p.style==='LAG')hints.push(p.name+': 체크 → 트랩 준비 중일 수 있음!');
+        }
+      });
+      if(hints.length>0)readingHint='<br><span style="color:var(--blue2);font-size:10px">🔍 '+hints.join(' | ')+'</span>';
+    }
+  }
+  
+  $('coachText').innerHTML='<strong>'+actKo(info.act)+'</strong> 추천'+oddsStr+posStr+'<br>'+tipMsg+readingHint;
   
   // Buttons
   $('foldBtn').disabled=handOver;
@@ -1565,14 +1609,8 @@ function showResult(isWin,winner,xp,isFold,showdownResults){
     }
   }
   
-  if(board.length>0){
-    $('resultBoardWrap').style.display='block';
-    var bHTML='';
-    board.forEach(function(c){bHTML+=renderCard(c)});
-    $('resultBoardCards').innerHTML=bHTML;
-  } else {
-    $('resultBoardWrap').style.display='none';
-  }
+  // 보드는 각 플레이어의 7장 디스플레이에서 표시하므로 별도 보드 영역은 숨김
+  $('resultBoardWrap').style.display='none';
   
   var sdHTML='';
   if(!isFold&&showdownResults&&showdownResults.length>0){
@@ -1592,29 +1630,43 @@ function showResult(isWin,winner,xp,isFold,showdownResults){
       }
     }
     
+    // 상대 핸드 리딩 복기 (학습용)
+    var readingReview=[];
+    showdownResults.forEach(function(r){
+      if(r.player.isHero)return;
+      var sd=AI_STYLE_DESC[r.player.style];
+      if(!sd||!r.hand)return;
+      var lastAct=r.player.action||'';
+      readingReview.push(r.player.name+' ('+sd.label+'): '+lastAct+' → 실제 패: <strong>'+r.hand.name+'</strong>');
+    });
+    if(readingReview.length>0){
+      sdHTML+='<div class="sd-explain" style="background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.3);color:#c4b5fd">🔍 핸드 리딩 복기<br>'+readingReview.join('<br>')+'</div>';
+    }
+    
     showdownResults.forEach(function(r,idx){
       var isW=idx===0;
-      var winCards=isW&&r.hand&&r.hand.bestCards?r.hand.bestCards:[];
+      var bestIds=r.hand&&r.hand.bestCards?r.hand.bestCards.map(function(bc){return bc.id}):[];
       sdHTML+='<div class="showdown-player'+(isW?' winner':'')+'">';
       sdHTML+='<div class="sp-header">';
       sdHTML+='<span class="sp-name">'+(r.player.isHero?'🙋 나':r.player.name)+(isW?' 🏆':'')+' </span>';
       if(r.hand)sdHTML+='<span class="sp-hand-name">'+r.hand.name+'</span>';
       sdHTML+='</div>';
-      // 홀카드 표시
-      sdHTML+='<div class="sp-cards">';
+      // 홀카드 2장 + 보드 5장 = 7장 전체 표시
+      sdHTML+='<div class="sp-7cards">';
+      sdHTML+='<div class="sp-hole"><span class="sp-label">홀카드</span><div class="sp-cards">';
       r.player.cards.forEach(function(c){
-        var isWinCard=winCards.some(function(bc){return bc.id===c.id});
-        sdHTML+=renderCard(c,{win:isWinCard,sm:false});
+        var inBest=bestIds.indexOf(c.id)>=0;
+        sdHTML+=renderCard(c,{win:inBest,sm:true});
       });
+      sdHTML+='</div></div>';
+      sdHTML+='<span class="sp-plus">+</span>';
+      sdHTML+='<div class="sp-board"><span class="sp-label">보드</span><div class="sp-cards">';
+      board.forEach(function(c){
+        var inBest=bestIds.indexOf(c.id)>=0;
+        sdHTML+=renderCard(c,{win:inBest,sm:true});
+      });
+      sdHTML+='</div></div>';
       sdHTML+='</div>';
-      // 베스트 5장 카드 표시 (모든 플레이어)
-      if(r.hand&&r.hand.bestCards){
-        sdHTML+='<div class="sp-best5"><span class="sp-best5-label">'+(isW?'🏆 ':'')+'베스트 5장:</span>';
-        r.hand.bestCards.forEach(function(bc){
-          sdHTML+=renderCard(bc,{win:isW,sm:true});
-        });
-        sdHTML+='</div>';
-      }
       sdHTML+='</div>';
     });
   } else if(isFold){
@@ -1916,6 +1968,57 @@ ${buildHandChart()}
 <h3>스택 100BB 규칙</h3>
 <p>일반적으로 <strong>스택의 5% 이상을 한 핸드에 넣지 마세요</strong>. 예: 1,000 스택이면 한 핸드 최대 50 위험.<br><br>
 스택이 위험해지면 스택 수치가 빨간색으로 바뀝니다. 폴드를 더 적극적으로 하세요!</p>
+</div>
+
+<div class="section-title">🔍 상대 핸드 읽기 (핸드 리딩)</div>
+<div class="learn-card">
+<h3>핸드 리딩이란?</h3>
+<p>포커의 핵심 스킬입니다. 상대의 <strong>베팅 패턴, 포지션, 스타일</strong>을 분석해서 상대가 어떤 카드를 가졌을지 추측하는 것입니다.<br><br>
+홀덤 도장의 AI는 각각 다른 스타일을 가지고 있어서 패턴을 읽는 연습을 할 수 있습니다.</p>
+</div>
+
+<div class="learn-card">
+<h3>🎯 타이트 공격형 (TAG) 읽기</h3>
+<p><strong>AI 민준</strong>이 이 스타일입니다.<br><br>
+• <strong>레이즈</strong>: 거의 확실히 강한 패 (탑페어 이상, 오버페어+)
+<br>• <strong>콜</strong>: 괜찮은 패이지만 확신은 없음
+<br>• <strong>체크</strong>: 약한 패 또는 슬로우플레이 (함정 주의!)
+<br>• <strong>폴드</strong>: 패가 약함
+<br><br>
+💡 <strong>대응법</strong>: TAG가 레이즈하면 내 패이 약할 때 과감히 폴드. 체크하면 베팅으로 압박 가능.</p>
+</div>
+
+<div class="learn-card">
+<h3>🔥 루즈 공격형 (LAG) 읽기</h3>
+<p><strong>AI 서아</strong>가 이 스타일입니다.<br><br>
+• <strong>레이즈</strong>: 강한 패 OR 블러프 (판단 필요!)
+<br>• <strong>콜</strong>: 드로우 중이거나 트랩 준비
+<br>• <strong>체크</strong>: 오히려 위험! 트랩일 수 있음
+<br>• <strong>폴드</strong>: 진짜 약한 패 (블러프도 포기한 것)
+<br><br>
+💡 <strong>대응법</strong>: LAG의 레이즈에 쉽게 폴드하지 말것. 괜찮은 패이면 콜로 트랩하는 전략이 효과적.</p>
+</div>
+
+<div class="learn-card">
+<h3>🛡️ 타이트 수비형 (TIGHT) 읽기</h3>
+<p><strong>AI 도윤</strong>이 이 스타일입니다.<br><br>
+• <strong>레이즈</strong>: 매우 강한 패 (폴드 고려)
+<br>• <strong>콜</strong>: 신중하게 따라오는 중 (괜찮은 패)
+<br>• <strong>체크</strong>: 약한 패 확실
+<br>• <strong>폴드</strong>: 약한 패 (자주 폴드함)
+<br><br>
+💡 <strong>대응법</strong>: TIGHT가 플레이에 남아있다면 주의. 블러프로 스틸하기 가장 좋은 상대.</p>
+</div>
+
+<div class="learn-card">
+<h3>🧠 보드 텍스처 읽기</h3>
+<p>보드에 따라 상대의 가능한 패을 추측할 수 있습니다:<br><br>
+• <strong>페어 보드</strong> (K-K-7): 상대가 트립이나 풀하우스 가능
+<br>• <strong>플러시 보드</strong> (같은 무늬 3장+): 상대 플러시 주의
+<br>• <strong>스트레이트 보드</strong> (5-6-7): 상대 스트레이트 주의
+<br>• <strong>드라이 보드</strong> (흘어진 숫자): 블러프 기회
+<br><br>
+보드를 보고 상대의 범위를 좁혀가는 연습을 해보세요!</p>
 </div>
 
 <div class="section-title">💚 후원사 안내</div>
