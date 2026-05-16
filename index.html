@@ -151,6 +151,33 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 .opp-action.act-check{color:#6ee7b7}
 .opp-action.act-allin{color:#f97316}
 .opp.folded{opacity:.3}
+.opp.eliminated{opacity:.15;pointer-events:none;filter:grayscale(1)}
+.opp.eliminated .opp-stack{color:#ef4444!important}
+.opp.eliminated .opp-name::after{content:' ❌';font-size:8px}
+
+/* Tournament Bar */
+.tournament-bar{display:flex;justify-content:center;gap:12px;padding:4px 8px;background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(239,68,68,.1));border-bottom:1px solid rgba(245,158,11,.2);font-size:10px;font-weight:700}
+.ti-players{color:#60a5fa}
+.ti-blind{color:#fcd34d}
+.ti-next{color:#94a3b8}
+
+/* Game Over Overlay */
+#gameOverOverlay,#championOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;justify-content:center;align-items:center;padding:20px}
+.go-card,.champ-card{background:linear-gradient(145deg,#1a2540,#111827);border:2px solid var(--border2);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.go-emoji,.champ-emoji{font-size:56px;margin-bottom:8px}
+.go-title{font-size:24px;font-weight:900;color:#f87171;margin-bottom:4px}
+.champ-title{font-size:24px;font-weight:900;color:#fcd34d;margin-bottom:4px}
+.go-sub,.champ-sub{font-size:13px;color:var(--txt2);margin-bottom:16px}
+.go-stats,.champ-stats{background:var(--bg3);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--txt2);line-height:1.8}
+.champ-xp{font-size:20px;font-weight:900;color:#fcd34d;margin-bottom:16px}
+.go-recharge{margin-top:12px}
+.go-recharge-title{font-size:14px;font-weight:800;color:var(--txt);margin-bottom:12px}
+.go-btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px}
+.go-share{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.go-wait{background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff}
+.go-or{font-size:11px;color:var(--txt3);margin:8px 0}
+.go-timer{font-size:13px;color:var(--yellow2);font-weight:700;margin-bottom:8px}
+.champ-share{margin-bottom:12px}
 .opp.winner-glow .opp-info{border-color:var(--gold);box-shadow:0 0 16px rgba(255,215,0,.4)}
 .dealer-btn{
   position:absolute;top:-6px;right:2px;
@@ -634,9 +661,10 @@ input[type=range]{-webkit-appearance:none;appearance:none}
     <h1>🃏 홀덤 도장</h1>
     <div class="hdr-r">
       <div class="hdr-stat"><span>⚡</span><span id="hdrXP">0</span></div>
-      <div id="beltBadge">흰띠</div>
+      <div id="beltBadge">흰띄</div>
     </div>
   </div>
+  <div id="tournamentInfo" class="tournament-bar"></div>
 
   <!-- Table -->
   <div id="tableWrap">
@@ -790,6 +818,54 @@ var quizIdx=0;
 var currentPanel=null,tutStep=0;
 var progress=loadProgress();
 var sponsorShownCount=0;
+
+// ===== TOURNAMENT SYSTEM =====
+var BLIND_LEVELS=[
+  {sb:10,bb:20},
+  {sb:20,bb:40},
+  {sb:30,bb:60},
+  {sb:50,bb:100},
+  {sb:75,bb:150},
+  {sb:100,bb:200}
+];
+var HANDS_PER_LEVEL=10;
+var INIT_STACK=1000;
+var RECHARGE_WAIT_MS=30*60*1000; // 30분
+var tournamentHand=0; // 현재 토너먼트 내 핸드 수
+var eliminatedPlayers=[]; // 탈락한 플레이어 인덱스
+
+function getBlindLevel(){
+  var lvl=Math.floor(tournamentHand/HANDS_PER_LEVEL);
+  return BLIND_LEVELS[Math.min(lvl,BLIND_LEVELS.length-1)];
+}
+function getBlindLevelIdx(){
+  return Math.min(Math.floor(tournamentHand/HANDS_PER_LEVEL),BLIND_LEVELS.length-1);
+}
+function activePlayers(){
+  return players.filter(function(p){return eliminatedPlayers.indexOf(players.indexOf(p))<0});
+}
+function activePlayerCount(){
+  return players.length-eliminatedPlayers.length;
+}
+function isEliminated(idx){
+  return eliminatedPlayers.indexOf(idx)>=0;
+}
+function canRecharge(){
+  var lastBust=parseInt(localStorage.getItem('holdem_lastBust')||'0');
+  if(!lastBust)return true;
+  return Date.now()-lastBust>=RECHARGE_WAIT_MS;
+}
+function getRechargeRemaining(){
+  var lastBust=parseInt(localStorage.getItem('holdem_lastBust')||'0');
+  if(!lastBust)return 0;
+  var remain=RECHARGE_WAIT_MS-(Date.now()-lastBust);
+  return Math.max(0,remain);
+}
+function hasSharedForRecharge(){
+  var lastShare=localStorage.getItem('holdem_shareRecharge');
+  var lastBust=localStorage.getItem('holdem_lastBust');
+  return lastShare&&lastBust&&parseInt(lastShare)>=parseInt(lastBust);
+}
 
 // ===== UTILS =====
 function $(id){return document.getElementById(id)}
@@ -1143,36 +1219,73 @@ function newHand(resetAll){
   if(resetAll){
     initPlayers();
     dealer=0;
-    showToast('새 게임 시작!','rgba(59,130,246,.95)');
+    tournamentHand=0;
+    eliminatedPlayers=[];
+    showToast('🏆 새 토너먼트 시작!','rgba(59,130,246,.95)');
+  }
+  
+  // 핸드 시작 전 탈락 체크 (스택 0인 플레이어)
+  players.forEach(function(p,i){
+    if(i>0&&p.stack<=0&&!isEliminated(i)){
+      eliminatedPlayers.push(i);
+      showToast('💀 '+p.name+' 탈락!','rgba(239,68,68,.95)');
+    }
+  });
+  
+  // 히어로 파산 체크
+  if(players[0].stack<=0){
+    showGameOver();
+    return;
+  }
+  
+  // 우승 체크 (나만 남음)
+  if(activePlayerCount()<=1){
+    showChampion();
+    return;
   }
   
   var N=players.length;
-  dealer=(dealer+1)%N;
+  // 딜러 이동 (탈락자 건너뛰기)
+  do{dealer=(dealer+1)%N;}while(isEliminated(dealer));
   
-  // 스택 0인 AI 리셋
-  players.forEach(function(p,i){
-    if(i>0&&p.stack<=0)p.stack=1000;
-  });
+  // 블라인드 레벨
+  var blind=getBlindLevel();
+  var SB=blind.sb,BB=blind.bb;
   
   deck=makeDeck();
   board=[];street='preflop';pot=0;currentBet=0;handOver=false;
-  players.forEach(function(p){p.cards=[];p.round=0;p.action='';p.folded=false;});
+  players.forEach(function(p,i){
+    p.cards=[];p.round=0;p.action='';
+    p.folded=isEliminated(i); // 탈락자는 자동 폴드
+  });
   
-  var sb=(dealer+1)%N,bb=(dealer+2)%N;
-  var SB=10,BB=20;
-  players[sb].stack-=SB;players[sb].round=SB;pot+=SB;players[sb].action='SB';
-  players[bb].stack-=BB;players[bb].round=BB;pot+=BB;players[bb].action='BB';
-  currentBet=BB;
+  // SB/BB 위치 (탈락자 건너뛰기)
+  var sb=dealer,bb=dealer;
+  do{sb=(sb+1)%N;}while(isEliminated(sb));
+  do{bb=(bb+1)%N;}while(bb===sb||isEliminated(bb));
   
-  // 카드 딜
+  var sbAmt=Math.min(SB,players[sb].stack);
+  var bbAmt=Math.min(BB,players[bb].stack);
+  players[sb].stack-=sbAmt;players[sb].round=sbAmt;pot+=sbAmt;players[sb].action='SB';
+  players[bb].stack-=bbAmt;players[bb].round=bbAmt;pot+=bbAmt;players[bb].action='BB';
+  currentBet=bbAmt;
+  
+  // 카드 딜 (활성 플레이어만)
   for(var i=0;i<2;i++){
-    players.forEach(function(p){p.cards.push(deal())});
+    players.forEach(function(p,idx){
+      if(!isEliminated(idx))p.cards.push(deal());
+    });
   }
   
-  // AI 프리플랍 액션 (UTG부터)
-  var utg=(dealer+3)%N;
-  for(var step=0;step<N-1;step++){
-    var idx=(utg+step)%N;
+  // AI 프리플랍 액션 (UTG부터, 탈락자 건너뛰기)
+  var utg=bb;
+  do{utg=(utg+1)%N;}while(isEliminated(utg));
+  var activeN=activePlayerCount();
+  for(var step=0;step<activeN-1;step++){
+    var idx=utg;
+    for(var s=0;s<=step;s++){
+      if(s>0)do{idx=(idx+1)%N;}while(isEliminated(idx));
+    }
     if(idx===0)continue;
     var p=players[idx];
     if(p.folded)continue;
@@ -1180,20 +1293,165 @@ function newHand(resetAll){
     aiDecide(p,need,pot,'preflop');
   }
   
+  tournamentHand++;
   handCount++;
   progress.hands++;
   saveProgress();
   
+  var blindInfo=getBlindLevel();
+  var lvlIdx=getBlindLevelIdx();
+  var nextLvlIn=HANDS_PER_LEVEL-(tournamentHand%HANDS_PER_LEVEL);
   renderGame('카드를 확인하고 행동을 선택하세요.');
+  updateTournamentUI();
   
   if(!progress.tutDone&&handCount===1){
     setTimeout(function(){showTutorial(0)},600);
   }
 }
 
-function checkTableClear(){
-  return players.some(function(p){return p.stack<=0});
+function updateTournamentUI(){
+  var el=$('tournamentInfo');
+  if(!el)return;
+  var alive=activePlayerCount();
+  var lvl=getBlindLevelIdx()+1;
+  var blind=getBlindLevel();
+  var nextIn=HANDS_PER_LEVEL-(tournamentHand%HANDS_PER_LEVEL);
+  el.innerHTML='<span class="ti-players">👥 '+alive+'/'+players.length+'</span>'+
+    '<span class="ti-blind">Lv.'+lvl+' ('+blind.sb+'/'+blind.bb+')</span>'+
+    '<span class="ti-next">⏰ '+nextIn+'핸드 후 블라인드↑</span>';
 }
+
+function showGameOver(){
+  localStorage.setItem('holdem_lastBust',Date.now().toString());
+  var overlay=$('gameOverOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='gameOverOverlay';
+    overlay.innerHTML='<div class="go-card">'+
+      '<div class="go-emoji">💥</div>'+
+      '<div class="go-title">토너먼트 탈락!</div>'+
+      '<div class="go-sub">스택을 모두 잃었습니다</div>'+
+      '<div class="go-stats" id="goStats"></div>'+
+      '<div class="go-recharge">'+
+        '<div class="go-recharge-title">🔄 다시 도전하기</div>'+
+        '<button class="go-btn go-share" id="goShareBtn" onclick="rechargeByShare()">📤 SNS 공유하고 즉시 충전</button>'+
+        '<div class="go-or">또는</div>'+
+        '<div class="go-timer" id="goTimer">⏳ 30분 후 자동 충전</div>'+
+        '<button class="go-btn go-wait" id="goWaitBtn" style="display:none" onclick="rechargeByWait()">✅ 충전 완료! 새 토너먼트 시작</button>'+
+      '</div>'+
+    '</div>';
+    document.body.appendChild(overlay);
+  }
+  // 통계 표시
+  var statsEl=$('goStats');
+  if(statsEl){
+    statsEl.innerHTML='<div>🏆 이번 토너먼트: '+tournamentHand+'핸드 플레이</div>'+
+      '<div>💰 최종 순위: '+(eliminatedPlayers.length+1)+'/'+players.length+'위</div>'+
+      '<div>⭐ 누적 XP: '+fmt(progress.xp)+'</div>';
+  }
+  overlay.style.display='flex';
+  startRechargeTimer();
+}
+
+function showChampion(){
+  progress.tournamentWins=(progress.tournamentWins||0)+1;
+  var bonusXP=500;
+  addXP(bonusXP);
+  saveProgress();
+  
+  var overlay=$('championOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='championOverlay';
+    overlay.innerHTML='<div class="champ-card">'+
+      '<div class="champ-emoji">🏆</div>'+
+      '<div class="champ-title">토너먼트 우승!</div>'+
+      '<div class="champ-sub">모든 상대를 제압했습니다!</div>'+
+      '<div class="champ-stats" id="champStats"></div>'+
+      '<div class="champ-xp">+'+bonusXP+' XP 획득!</div>'+
+      '<div class="champ-share">'+
+        '<button class="go-btn go-share" onclick="shareChampion()">📤 우승 자랑하기</button>'+
+      '</div>'+
+      '<button class="go-btn go-wait" onclick="startNewTournament()">🏆 다음 토너먼트 시작</button>'+
+    '</div>';
+    document.body.appendChild(overlay);
+  }
+  var statsEl=$('champStats');
+  if(statsEl){
+    statsEl.innerHTML='<div>🏆 우승 횟수: '+progress.tournamentWins+'회</div>'+
+      '<div>🃏 플레이 핸드: '+tournamentHand+'</div>'+
+      '<div>💰 최종 스택: '+fmt(players[0].stack)+'</div>'+
+      '<div>⭐ 누적 XP: '+fmt(progress.xp)+'</div>';
+  }
+  overlay.style.display='flex';
+  // 우승 이펙트
+  for(var i=0;i<12;i++){
+    (function(i){setTimeout(function(){spawnChips(true)},i*200)})(i);
+  }
+}
+
+var rechargeInterval=null;
+function startRechargeTimer(){
+  if(rechargeInterval)clearInterval(rechargeInterval);
+  var timerEl=$('goTimer');
+  var waitBtn=$('goWaitBtn');
+  var shareBtn=$('goShareBtn');
+  if(hasSharedForRecharge()){
+    if(shareBtn)shareBtn.style.display='none';
+  }
+  rechargeInterval=setInterval(function(){
+    var remain=getRechargeRemaining();
+    if(remain<=0||hasSharedForRecharge()){
+      if(timerEl)timerEl.textContent='✅ 충전 완료!';
+      if(waitBtn)waitBtn.style.display='block';
+      clearInterval(rechargeInterval);
+    } else {
+      var min=Math.floor(remain/60000);
+      var sec=Math.floor((remain%60000)/1000);
+      if(timerEl)timerEl.textContent='⏳ '+min+'분 '+sec+'초 후 자동 충전';
+    }
+  },1000);
+}
+
+function rechargeByShare(){
+  localStorage.setItem('holdem_shareRecharge',Date.now().toString());
+  var txt='🃏 홀덤 도장에서 '+tournamentHand+'핸드 만에 탈락했다... 다시 도전한다!\n\n나도 도전해보기 → https://holdem-brown.vercel.app\n\n#홀덤도장 #홀덤 #포커';
+  if(navigator.share){
+    navigator.share({title:'홀덤 도장',text:txt,url:'https://holdem-brown.vercel.app'}).then(function(){
+      startNewTournament();
+    }).catch(function(){
+      startNewTournament();
+    });
+  } else {
+    navigator.clipboard.writeText(txt).then(function(){
+      showToast('클립보드에 복사되었습니다!');
+      startNewTournament();
+    });
+  }
+}
+
+function rechargeByWait(){
+  startNewTournament();
+}
+
+function startNewTournament(){
+  var goOverlay=$('gameOverOverlay');
+  if(goOverlay)goOverlay.style.display='none';
+  var champOverlay=$('championOverlay');
+  if(champOverlay)champOverlay.style.display='none';
+  if(rechargeInterval)clearInterval(rechargeInterval);
+  newHand(true);
+}
+
+function shareChampion(){
+  var txt='🏆 홀덤 도장 토너먼트 우승!\n'+tournamentHand+'핸드 만에 모든 AI를 제압했다!\n최종 스택: '+fmt(players[0].stack)+'\n\n나도 도전 → https://holdem-brown.vercel.app\n\n#홀덤도장 #홀덤 #포커 #우승';
+  if(navigator.share){
+    navigator.share({title:'홀덤 도장 우승!',text:txt,url:'https://holdem-brown.vercel.app'}).catch(function(){});
+  } else {
+    navigator.clipboard.writeText(txt).then(function(){showToast('클립보드에 복사되었습니다!')});
+  }
+}
+
 function aliveCount(){
   return players.filter(function(p){return!p.folded}).length;
 }
@@ -1251,8 +1509,9 @@ function renderGame(coachMsg){
     var isSB=i===(dealer+1)%players.length;
     var isBB=i===(dealer+2)%players.length;
     var role=isDealer?'D':isSB?'SB':isBB?'BB':'';
-    var isActive=!p.folded&&!handOver;
-    oppHTML+='<div class="opp'+(p.folded?' folded':'')+(isActive?' active':'')+'">';
+    var elim=isEliminated(i);
+    var isActive=!p.folded&&!handOver&&!elim;
+    oppHTML+='<div class="opp'+(elim?' eliminated':p.folded?' folded':'')+(isActive?' active':'')+'">';
     if(isDealer)oppHTML+='<div class="dealer-btn">D</div>';
     oppHTML+='<div class="opp-cards">';
     oppHTML+=renderCard(null,{back:true,sm:true,deal:false});
@@ -1266,7 +1525,7 @@ function renderGame(coachMsg){
       oppHTML+='<div class="opp-style" title="'+styleInfo.desc+'">'+styleInfo.emoji+' '+styleInfo.label+'</div>';
     }
     if(role)oppHTML+='<div class="opp-role">'+role+'</div>';
-    oppHTML+='<div class="opp-stack">'+fmt(p.stack)+'</div>';
+    oppHTML+='<div class="opp-stack">'+(elim?'탈락':fmt(p.stack))+'</div>';
     var actClass='opp-action';
     if(p.action==='폴드')actClass+=' act-fold';
     else if(p.action==='콜')actClass+=' act-call';
@@ -2404,15 +2663,11 @@ $('betSlider').addEventListener('input',function(){
   var bt=$('betTxt');if(bt)bt.textContent='+'+betAmount;
 });
 $('nextBtn').addEventListener('click',function(){
-  var hero=players[0];
-  if(hero.stack<=0){newHand(true);}
-  else{newHand(false);}
+  newHand(false);
 });
 $('resultNextBtn').addEventListener('click',function(){
   hideResult();
-  var hero=players[0];
-  if(hero.stack<=0){newHand(true);}
-  else{newHand(false);}
+  newHand(false);
 });
 
 // 패널 스와이프 닫기
@@ -2433,7 +2688,15 @@ setTimeout(function(){
   var ls=$('loadingScreen');
   ls.classList.add('fade');
   setTimeout(function(){ls.style.display='none';},500);
-  newHand(true);
+  // 페이지 로드 시 충전 체크
+  var lastBust=parseInt(localStorage.getItem('holdem_lastBust')||'0');
+  if(lastBust&&!canRecharge()&&!hasSharedForRecharge()){
+    initPlayers();
+    players[0].stack=0;
+    showGameOver();
+  } else {
+    newHand(true);
+  }
 },1200);
 
 })();
