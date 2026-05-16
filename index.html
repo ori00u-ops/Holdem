@@ -2417,8 +2417,8 @@ function showdown(){
     w.player.stack+=amt;
   });
   
-  // 히어로가 승자 중 하나인지 확인
-  var isHeroWin=winners.some(function(w){return w.player===players[0]});
+  // 히어로가 승자 중 하나인지 확인 (폴드한 히어로는 절대 승자 아님)
+  var isHeroWin=(!players[0].folded)&&winners.some(function(w){return w.player===players[0]});
   
   // 스트릭 시스템
   if(isHeroWin){
@@ -2450,8 +2450,9 @@ function showdown(){
 
 // ===== RESULT DISPLAY =====
 function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinners){
-  $('resultEmoji').textContent=isSplitPot&&isWin?'⚖️':isWin?'🏆':'😔';
-  playSound(isWin?'win':'lose');
+  var heroIsFolded=players[0].folded;
+  $('resultEmoji').textContent=heroIsFolded?'😔':isSplitPot&&isWin?'⚖️':isWin?'🏆':'😔';
+  playSound((isWin&&!heroIsFolded)?'win':'lose');
   
   // 최종 핸드 이름을 결과 제목에 표시
   var heroFinalHand=board.length>=3?bestHand(players[0].cards.concat(board)):null;
@@ -2471,7 +2472,7 @@ function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinne
     return '로';
   }
   var heroDidFold=players[0].folded;
-  if(heroDidFold&&isFold){
+  if(heroDidFold){
     // 히어로가 폴드한 경우 - 절대 승리로 표시하지 않음
     $('resultTitle').textContent='폴드 — '+(winner.name||'AI')+' 승리';
   } else if(isSplitPot&&isWin){
@@ -2616,7 +2617,7 @@ function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinne
   var heroInfo=handInfo(players[0].cards);
   var coachMsg='';
   var heroFolded=players[0].folded;
-  if(heroFolded&&!isWin){
+  if(heroFolded){
     // 히어로가 폴드한 경우
     var winnerName=winner.name||'상대';
     if(winnerFinalHand){
