@@ -1741,7 +1741,7 @@ function aiCallOrFoldAllIn(p,need){
   if(need<=0){
     p.action='체크';
   } else if(str>=potOdds+buffer){
-    postBet_ai(p,callCost,'콜');
+    postBet_ai(p,need,'콜');
   } else {
     p.folded=true;p.action='폴드';
   }
@@ -2657,10 +2657,10 @@ function showScenarioOverlay(sc){
     '<div style="font-size:18px;font-weight:900;color:#fff;margin-bottom:12px">'+sc.name+'</div>'+
     '<div style="font-size:13px;color:var(--txt2);line-height:1.6;margin-bottom:16px">상황: '+sc.aiAction+'<br>상대 스타일: '+sc.aiStyle+'<br>팟: '+sc.pot+' · 콜 필요: '+sc.currentBet+'</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">'+
-    '<button onclick="scenarioAnswer('fold')" style="background:linear-gradient(135deg,#374151,#1f2937);color:#9ca3af;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer">폴드</button>'+
-    '<button onclick="scenarioAnswer('check')" style="background:linear-gradient(135deg,#f8fafc,#e2e8f0);color:#1e293b;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer">체크</button>'+
-    '<button onclick="scenarioAnswer('call')" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer">콜</button>'+
-    '<button onclick="scenarioAnswer('bet')" style="background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer">베팅</button>'+
+    '<button onclick="scenarioAnswer(&#39;fold&#39;)" style="background:linear-gradient(135deg,#374151,#1f2937);color:#9ca3af;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer">폴드</button>'+
+    '<button onclick="scenarioAnswer(&#39;check&#39;)" style="background:linear-gradient(135deg,#f8fafc,#e2e8f0);color:#1e293b;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer">체크</button>'+
+    '<button onclick="scenarioAnswer(&#39;call&#39;)" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer">콜</button>'+
+    '<button onclick="scenarioAnswer(&#39;bet&#39;)" style="background:linear-gradient(135deg,#ea580c,#c2410c);color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer">베팅</button>'+
     '</div>'+
     '<button onclick="closeScenario()" style="width:100%;background:transparent;color:var(--txt2);border:1px solid var(--border2);border-radius:12px;padding:10px;font-size:12px;font-weight:700;cursor:pointer">나가기</button>'+
     '</div>';
@@ -3632,7 +3632,7 @@ function buildGrowthContent(){
   html+='<div style="font-size:13px;font-weight:900;color:#60a5fa;margin-bottom:2px">심화 전략 가이드</div>';
   html+='<div style="font-size:11px;color:var(--txt2);line-height:1.4">프로 핸드 리뷰 100예제 · 포지션별 GTO 차트 · 매주 새 시나리오</div>';
   html+='</div>';
-  html+='<button onclick="showToast('준비 중입니다! 완성되면 무료로 공개됩니다 📧')" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:11px;font-weight:900;cursor:pointer;flex-shrink:0">알림 받기</button>';
+  html+='<button onclick="showToast(&#39;준비 중입니다! 완성되면 무료로 공개됩니다 📧&#39;)" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:11px;font-weight:900;cursor:pointer;flex-shrink:0">알림 받기</button>';
   html+='</div>';
 
   // 미션
@@ -3851,12 +3851,16 @@ setTimeout(function(){
   "inLanguage": "ko",
   "keywords": "홀덤, 텍사스홀덤, 포커, 홀덤연습, 홀덤배우기, 홀덤게임"
 }
+</script>
 
-// PWA Service Worker (offline cache for static assets)
+<script>
+// PWA Service Worker
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('data:text/javascript;base64,'+btoa("self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(clients.claim()));self.addEventListener('fetch',e=>e.respondWith(fetch(e.request).catch(()=>caches.match(e.request))));"));
+  try {
+    var swCode = "self.addEventListener('install',function(e){self.skipWaiting()});self.addEventListener('activate',function(e){e.waitUntil(clients.claim())});self.addEventListener('fetch',function(e){e.respondWith(fetch(e.request).catch(function(){return caches.match(e.request)}))});";
+    navigator.serviceWorker.register('data:text/javascript;base64,'+btoa(swCode));
+  } catch(e) {}
 }
-
 </script>
 </body>
 </html>
