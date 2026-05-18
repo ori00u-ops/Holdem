@@ -1956,11 +1956,14 @@ function copyAndRecharge(txt){
 }
 
 function startNewTournament(){
+  hideResult();
   var goOverlay=$('gameOverOverlay');
   if(goOverlay)goOverlay.style.display='none';
   var champOverlay=$('championOverlay');
   if(champOverlay)champOverlay.style.display='none';
-  if(rechargeInterval)clearInterval(rechargeInterval);
+  if(typeof rechargeInterval!=='undefined'&&rechargeInterval)clearInterval(rechargeInterval);
+  localStorage.removeItem('holdem_lastBust');
+  localStorage.removeItem('holdem_shareRecharge');
   newHand(true);
 }
 
