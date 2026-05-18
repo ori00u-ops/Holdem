@@ -672,7 +672,7 @@ input[type=range]{-webkit-appearance:none;appearance:none}
     <h1>🃏 홀덤 도장</h1>
     <div class="hdr-r">
       <div class="hdr-stat"><span>⚡</span><span id="hdrXP">0</span></div>
-      <div id="beltBadge">흰띄</div>
+      <div id="beltBadge">흰띠</div>
       <div id="soundToggle" style="cursor:pointer;font-size:18px;margin-left:6px" onclick="soundEnabled=!soundEnabled;this.textContent=soundEnabled?'🔊':'🔇'">🔊</div>
     </div>
   </div>
@@ -949,7 +949,7 @@ function playSound(type){
 
 // ===== STATE =====
 var deck=[],board=[],street='preflop',pot=0,currentBet=0,handOver=false;
-var players=[],dealer=0,handCount=0,betAmount=60;
+var players=[],dealer=0,smallBlindSeat=1,bigBlindSeat=2,handCount=0,betAmount=60;
 var quizIdx=0;
 var currentPanel=null,tutStep=0;
 var progress=loadProgress();
@@ -998,6 +998,31 @@ function activePlayerCount(){
 }
 function isEliminated(idx){
   return eliminatedPlayers.indexOf(idx)>=0;
+}
+function nextActiveSeat(from){
+  var N=players.length;
+  var idx=from;
+  for(var step=0;step<N;step++){
+    idx=(idx+1)%N;
+    if(!isEliminated(idx))return idx;
+  }
+  return from;
+}
+function getPositionLabel(idx){
+  if(idx===dealer&&idx===smallBlindSeat)return'BTN/SB';
+  if(idx===dealer)return'BTN';
+  if(idx===smallBlindSeat)return'SB';
+  if(idx===bigBlindSeat)return'BB';
+  var order=[];
+  var cur=bigBlindSeat;
+  for(var step=0;step<players.length;step++){
+    cur=nextActiveSeat(cur);
+    if(cur===dealer)break;
+    if(cur!==smallBlindSeat&&cur!==bigBlindSeat)order.push(cur);
+  }
+  var labels=['UTG','HJ','CO','MP'];
+  var pos=order.indexOf(idx);
+  return labels[pos]||'MP';
 }
 // === 하루 3회 무료 재시작 시스템 (WSOP 토너먼트 리바이) ===
 var MAX_DAILY_RECHARGES=3;
@@ -1247,17 +1272,13 @@ function actKo(a){return{bet:'베팅',call:'콜',check:'체크',fold:'폴드',ra
 
 // --- 포지션 계산 ---
 function getAIPosition(pIdx){
-  // 6인 테이블: BTN(dealer), SB, BB, UTG, HJ, CO
-  var N=players.length;
-  var posNames=['BTN','SB','BB','UTG','HJ','CO'];
-  var offset=(pIdx-dealer+N)%N;
-  return posNames[offset]||'MP';
+  return getPositionLabel(pIdx);
 }
 
 // --- 포지션별 공격성 보너스 ---
 function positionBonus(pos){
   // BTN/CO는 더 공격적, UTG/EP는 더 타이트
-  var bonusMap={'BTN':0.12,'CO':0.08,'HJ':0.03,'SB':-0.02,'BB':0.0,'UTG':-0.06};
+  var bonusMap={'BTN':0.12,'BTN/SB':0.08,'CO':0.08,'HJ':0.03,'SB':-0.02,'BB':0.0,'UTG':-0.06};
   return bonusMap[pos]||0;
 }
 
@@ -1366,7 +1387,8 @@ function gtoHandStrength(cards,pos){
 }
 
 function aiDecide(p,need,pot,streetName){
-  if(p.folded||p.stack<=0){p.folded=true;return;}
+  if(p.folded)return;
+  if(p.stack<=0){p.action=p.action||'올인';return;}
   
   var style=p.style||'TAG';
   var pIdx=players.indexOf(p);
@@ -1376,7 +1398,8 @@ function aiDecide(p,need,pot,streetName){
   var stackBB=p.stack/BB; // 스택 깊이 (BB 단위)
   var r=Math.random();
   var ratio=need>0?need/p.stack:0;
-  var potOdds=need>0?need/(pot+need):0;
+  var callCost=Math.min(need,p.stack);
+  var potOdds=callCost>0?callCost/(pot+callCost):0;
   var heroAggro=getHeroAggroFactor();
   
   // === 프리플랍 vs 포스트플랍 분기 ===
@@ -1438,10 +1461,10 @@ function aiDecide(p,need,pot,streetName){
   var isDeepStack=stackBB>=40;
   
   if(isShortStack){
-    // 숙택: 푸시/폴드 전략 - 콜이 줄고 올인/폴드로 단순화
+    // 숏스택: 푸시/폴드 전략 - 콜이 줄고 올인/폴드로 단순화
     foldTh+=0.08;
     raiseTh-=0.15; // 레이즈 임계값 낮춤 = 더 자주 올인
-    bluffProb+=0.10; // 숙택은 더 공격적
+    bluffProb+=0.10; // 숏스택은 더 공격적
   }
   if(isDeepStack){
     // 딥스택: 더 신중하게
@@ -1486,7 +1509,7 @@ function aiDecide(p,need,pot,streetName){
     if(effectiveStr>=raiseTh){
       // 강한 패: 큰 베팅
       var betSize=Math.min(Math.floor(pot*(0.6+Math.random()*0.4)/10)*10||BB*3,p.stack);
-      if(isShortStack&&effectiveStr>=0.75)betSize=p.stack; // 숙택 올인
+      if(isShortStack&&effectiveStr>=0.75)betSize=p.stack; // 숏스택 올인
       postBet_ai(p,betSize,'베팅');
     } else if(effectiveStr>=callTh){
       // 중간 패: 중간 베팅 또는 체크
@@ -1545,7 +1568,7 @@ function aiDecide(p,need,pot,streetName){
       // 블러프 캐치: 히어로가 매번 올인하면 더 많이 콜
       else if(heroAggro>0.5&&adjStr>=0.30&&r<0.40)shouldCall=true;
       else if(heroAggro>0.7&&r<0.30)shouldCall=true; // 극단적 어그로에는 약한 패도 콜
-      // 숙택 푸시: 스택 15BB 이하면 더 넓은 레인지로 콜
+      // 숏스택 푸시: 스택 15BB 이하면 더 넓은 레인지로 콜
       else if(isShortStack&&str>=0.40)shouldCall=true;
       
       if(shouldCall){
@@ -1571,7 +1594,7 @@ function aiDecide(p,need,pot,streetName){
         // 3-bet / 레이즈
         if(p.stack>need*2&&r<threeBetProb+0.15){
           var raiseAmt=Math.min(need*2.5+Math.floor(Math.random()*pot*0.3/10)*10,p.stack);
-          if(isShortStack)raiseAmt=p.stack; // 숙택 올인
+          if(isShortStack)raiseAmt=p.stack; // 숏스택 올인
           postBet_ai(p,raiseAmt,'레이즈');
         } else {
           postBet_ai(p,need,'콜');
@@ -1633,8 +1656,51 @@ function postBet_ai(p,amt,act){
   amt=Math.min(Math.max(0,amt),p.stack);
   if(amt<=0){p.action='체크';return;}
   p.stack-=amt;p.round=(p.round||0)+amt;pot+=amt;
-  p.action=act;
-  if(act==='레이즈'||act==='베팅')currentBet=Math.max(currentBet,p.round);
+  p.action=p.stack<=0?'올인':act;
+  if(p.round>currentBet)currentBet=p.round;
+}
+function aiCallOrFoldAllIn(p,need){
+  if(p.folded||p.stack<=0)return;
+  var pIdx=players.indexOf(p);
+  var pos=getAIPosition(pIdx);
+  var str=gtoHandStrength(p.cards,pos);
+  if(board.length>=3){
+    var made=bestHand(p.cards.concat(board));
+    if(made){
+      var rankStr=[0.15,0.40,0.52,0.62,0.72,0.78,0.85,0.92,0.96,0.99];
+      str=Math.max(str,rankStr[made.rank]||str);
+    }
+    var draws=detectDraws(p.cards,board);
+    if(draws.comboD)str=Math.max(str,0.72);
+    else if(draws.flush)str=Math.max(str,0.58);
+    else if(draws.oesd)str=Math.max(str,0.52);
+    else if(draws.gutshot)str=Math.max(str,0.38);
+  }
+  var potOdds=need>0?need/(pot+need):0;
+  var style=p.style||'TAG';
+  var buffer=style==='TIGHT'?0.18:style==='TAG'?0.10:0.04;
+  if(need<=0){
+    p.action='체크';
+  } else if(str>=potOdds+buffer){
+    postBet_ai(p,callCost,'콜');
+  } else {
+    p.folded=true;p.action='폴드';
+  }
+}
+function settleAIBets(maxRounds){
+  for(var round=0;round<maxRounds;round++){
+    var needsAction=false;
+    for(var i=1;i<players.length;i++){
+      var p=players[i];
+      if(p.folded||isEliminated(i)||p.stack<=0)continue;
+      var pNeed=Math.max(0,currentBet-p.round);
+      if(pNeed>0){
+        needsAction=true;
+        aiDecide(p,pNeed,pot,street);
+      }
+    }
+    if(!needsAction||aliveCount()<=1)break;
+  }
 }
 
 // ===== GAME INIT =====
@@ -1652,7 +1718,9 @@ function initPlayers(){
 function newHand(resetAll){
   if(resetAll){
     initPlayers();
-    dealer=0;
+    dealer=players.length-1;
+    smallBlindSeat=0;
+    bigBlindSeat=1;
     tournamentHand=0;
     eliminatedPlayers=[];
     showToast('🏆 새 토너먼트 시작!','rgba(59,130,246,.95)');
@@ -1694,10 +1762,18 @@ function newHand(resetAll){
     p.folded=isEliminated(i); // 탈락자는 자동 폴드
   });
   
-  // SB/BB 위치 (탈락자 건너뛰기)
-  var sb=dealer,bb=dealer;
-  do{sb=(sb+1)%N;}while(isEliminated(sb));
-  do{bb=(bb+1)%N;}while(bb===sb||isEliminated(bb));
+  // SB/BB 위치 (탈락자 건너뛰기, 헤즈업은 딜러가 SB)
+  var activeN=activePlayerCount();
+  var sb,bb;
+  if(activeN===2){
+    sb=dealer;
+    bb=nextActiveSeat(dealer);
+  } else {
+    sb=nextActiveSeat(dealer);
+    bb=nextActiveSeat(sb);
+  }
+  smallBlindSeat=sb;
+  bigBlindSeat=bb;
   
   var sbAmt=Math.min(SB,players[sb].stack);
   var bbAmt=Math.min(BB,players[bb].stack);
@@ -1714,20 +1790,19 @@ function newHand(resetAll){
   }
   
   // AI 프리플랍 액션 (UTG부터, 탈락자 건너뛰기)
-  var utg=bb;
-  do{utg=(utg+1)%N;}while(isEliminated(utg));
-  var activeN=activePlayerCount();
-  for(var step=0;step<activeN-1;step++){
-    var idx=utg;
-    for(var s=0;s<=step;s++){
-      if(s>0)do{idx=(idx+1)%N;}while(isEliminated(idx));
+  var firstToAct=activeN===2?sb:nextActiveSeat(bb);
+  var idx=firstToAct;
+  for(var step=0;step<activeN;step++){
+    if(idx!==0){
+      var p=players[idx];
+      if(!p.folded&&p.stack>0){
+        var need=Math.max(0,currentBet-p.round);
+        aiDecide(p,need,pot,'preflop');
+      }
     }
-    if(idx===0)continue;
-    var p=players[idx];
-    if(p.folded)continue;
-    var need=Math.max(0,currentBet-p.round);
-    aiDecide(p,need,pot,'preflop');
+    idx=nextActiveSeat(idx);
   }
+  settleAIBets(3);
   
   tournamentHand++;
   handCount++;
@@ -1952,10 +2027,10 @@ function renderGame(coachMsg){
   for(var i=1;i<players.length;i++){
     var p=players[i];
     var isDealer=i===dealer;
-    var isSB=i===(dealer+1)%players.length;
-    var isBB=i===(dealer+2)%players.length;
-    var role=isDealer?'D':isSB?'SB':isBB?'BB':'';
+    var isSB=i===smallBlindSeat;
+    var isBB=i===bigBlindSeat;
     var elim=isEliminated(i);
+    var role=elim?'':getPositionLabel(i);
     var isActive=!p.folded&&!handOver&&!elim;
     oppHTML+='<div class="opp'+(elim?' eliminated':p.folded?' folded':'')+(isActive?' active':'')+'">';
     if(isDealer)oppHTML+='<div class="dealer-btn">D</div>';
@@ -2010,14 +2085,15 @@ function renderGame(coachMsg){
   }
   
   // Hero
-  var heroIsSB=(dealer+1)%players.length===0;
-  var heroIsBB=(dealer+2)%players.length===0;
+  var heroIsSB=smallBlindSeat===0;
+  var heroIsBB=bigBlindSeat===0;
+  var heroPos=getPositionLabel(0);
   if(hero.cards.length>=2){
     var hHTML='';
-    // 딩러/SB/BB 버튼은 heroCards 컨테이너 위에 절대 포지션으로 표시
+    // 딜러/SB/BB 버튼은 heroCards 컨테이너 위에 절대 포지션으로 표시
     if(heroIsDealer)hHTML+='<div class="dealer-btn" style="position:absolute;top:-8px;left:-8px;z-index:10">D</div>';
-    if(heroIsSB)hHTML+='<div class="sb-badge" style="position:absolute;top:-8px;left:-8px;z-index:10">SB</div>';
-    if(heroIsBB)hHTML+='<div class="bb-badge" style="position:absolute;top:-8px;left:-8px;z-index:10">BB</div>';
+    if(heroIsSB)hHTML+='<div class="sb-badge" style="position:absolute;top:-8px;left:'+(heroIsDealer?'14px':'-8px')+';z-index:10">SB</div>';
+    if(heroIsBB)hHTML+='<div class="bb-badge" style="position:absolute;top:-8px;left:'+(heroIsDealer||heroIsSB?'14px':'-8px')+';z-index:10">BB</div>';
     hHTML+=renderCard(hero.cards[0],{deal:true});
     hHTML+=renderCard(hero.cards[1],{deal:true});
     $('heroCards').innerHTML=hHTML;
@@ -2081,8 +2157,6 @@ function renderGame(coachMsg){
   var oddsStr=need>0?' · 팟 오즈 '+potOdds+'%':'';
   
   // 포지션 정보
-  var N=players.length;
-  var heroPos=dealer===0?'BTN':((dealer+1)%N===0?'SB':((dealer+2)%N===0?'BB':'UTG/MP'));
   var posStr=' <span style="color:var(--blue2);font-size:10px">['+heroPos+']</span>';
   
   // 상대 핸드 추측 힌트 생성
@@ -2120,16 +2194,22 @@ function renderGame(coachMsg){
   
   // Buttons - 폴드했거나 핸드가 끝났으면 모든 버튼 비활성화
   var heroFolded=hero.folded;
-  $('foldBtn').disabled=handOver||heroFolded;
-  $('checkBtn').disabled=handOver||heroFolded||need>0;
-  $('callBtn').disabled=handOver||heroFolded||need<=0;
-  $('betBtn').disabled=handOver||heroFolded||hero.stack<=0;
+  var heroAllIn=hero.stack<=0&&!heroFolded;
+  $('foldBtn').disabled=handOver||heroFolded||heroAllIn;
+  $('checkBtn').disabled=handOver||heroFolded||heroAllIn||need>0;
+  $('callBtn').disabled=handOver||heroFolded||heroAllIn||need<=0;
+  $('betBtn').disabled=handOver||heroFolded||heroAllIn||hero.stack<=0;
   $('nextBtn').className=handOver?'show':'';
   
   // Quick bet buttons
-  var maxBet=Math.min(hero.stack,500);
-  $('betSlider').max=maxBet;
+  var maxBet=Math.max(0,Math.min(hero.stack,500));
+  var minBet=maxBet>0?Math.min(20,maxBet):0;
+  $('betSlider').min=minBet;
+  $('betSlider').max=Math.max(minBet,maxBet);
   if(betAmount>maxBet)betAmount=maxBet;
+  if(betAmount<minBet)betAmount=minBet;
+  $('betSlider').value=betAmount;
+  $('betAmt').textContent=betAmount;
   
   // 빠른 베팅 금액 업데이트
   var halfPot=Math.max(20,Math.floor(pot*0.5/10)*10);
@@ -2186,8 +2266,9 @@ function heroAct(action){
   } else if(action==='call'){
     var callAmt=Math.min(need,hero.stack);
     hero.stack-=callAmt;hero.round+=callAmt;pot+=callAmt;
-    hero.action='콜';
-    playSound('chip');
+    hero.action=hero.stack<=0?'올인':'콜';
+    if(hero.stack<=0)trackHeroAction('allin');
+    playSound(hero.stack<=0?'allin':'chip');
   } else if(action==='bet'){
     var ba=betAmount;
     var total=need+ba;
@@ -2195,19 +2276,34 @@ function heroAct(action){
     if(total<=0)return;
     hero.stack-=total;hero.round+=total;pot+=total;
     currentBet=Math.max(currentBet,hero.round);
-    hero.action=need>0?'레이즈':'베팅';
+    hero.action=hero.stack<=0?'올인':need>0?'레이즈':'베팅';
     trackHeroAction(hero.stack<=0?'allin':'raise');
     playSound(hero.stack<=0?'allin':'chip');
   }
   
   // AI 반응
-  if(action==='bet'||action==='raise'){
-  for(var i=1;i<players.length;i++){
-    var p=players[i];
-    if(p.folded)continue;
-    var pNeed=Math.max(0,currentBet-p.round);
-    if(pNeed>0)aiDecide(p,pNeed,pot,street);
+  if(action==='bet'){
+    var heroAllInAfterAction=hero.stack<=0&&!hero.folded;
+    for(var i=1;i<players.length;i++){
+      var p=players[i];
+      if(p.folded||isEliminated(i)||p.stack<=0)continue;
+      var pNeed=Math.max(0,currentBet-p.round);
+      if(pNeed>0){
+        if(heroAllInAfterAction)aiCallOrFoldAllIn(p,pNeed);
+        else aiDecide(p,pNeed,pot,street);
+      }
     }
+    if(!heroAllInAfterAction)settleAIBets(3);
+  }
+  
+  if(currentBet>hero.round&&hero.stack>0&&aliveCount()>1){
+    renderGame('상대가 레이즈했습니다. 콜, 폴드 또는 재레이즈를 선택하세요.');
+    return;
+  }
+  
+  if(hero.stack<=0&&!hero.folded){
+    autoFinishAfterHeroAllIn();
+    return;
   }
   
   if(aliveCount()<=1){
@@ -2230,6 +2326,29 @@ function heroAct(action){
   }
 }
 
+function autoFinishAfterHeroAllIn(){
+  if(aliveCount()<=1){
+    finishFold();
+    return;
+  }
+  while(street!=='river'){
+    playSound('card');
+    if(street==='preflop'){
+      street='flop';
+      board.push(deal(),deal(),deal());
+    } else if(street==='flop'){
+      street='turn';
+      board.push(deal());
+    } else if(street==='turn'){
+      street='river';
+      board.push(deal());
+    } else {
+      break;
+    }
+  }
+  showdown();
+}
+
 // ===== AUTO FINISH AFTER HERO FOLD =====
 function autoFinishAfterFold(){
   // 히어로가 폴드한 후 AI들끼리 남은 스트릿을 자동으로 진행
@@ -2248,20 +2367,10 @@ function autoFinishAfterFold(){
     currentBet=0;
     for(var i=1;i<players.length;i++){
       var p=players[i];
-      if(p.folded)continue;
+      if(p.folded||isEliminated(i)||p.stack<=0)continue;
       aiDecide(p,0,pot,street);
     }
-    // AI 레이즈에 대한 리액션 (최대 3라운드)
-    for(var round=0;round<3;round++){
-      var needsAction=false;
-      for(var i=1;i<players.length;i++){
-        var p=players[i];
-        if(p.folded)continue;
-        var pNeed=Math.max(0,currentBet-p.round);
-        if(pNeed>0){needsAction=true;aiDecide(p,pNeed,pot,street);}
-      }
-      if(!needsAction)break;
-    }
+    settleAIBets(3);
   }
   
   // 남은 스트릿 순서대로 진행
@@ -2329,21 +2438,12 @@ function nextStreet(){
   // AI 포스트플랍 액션
   for(var i=1;i<players.length;i++){
     var p=players[i];
-    if(p.folded)continue;
+    if(p.folded||isEliminated(i)||p.stack<=0)continue;
     aiDecide(p,0,pot,street);
   }
-  // AI 레이즈에 대한 다른 AI들의 리액션 (최대 2라운드)
-  for(var round=0;round<2;round++){
-    var needsAction=false;
-    for(var i=1;i<players.length;i++){
-      var p=players[i];
-      if(p.folded)continue;
-      var pNeed=Math.max(0,currentBet-p.round);
-      if(pNeed>0){needsAction=true;aiDecide(p,pNeed,pot,street);}
-    }
-    if(!needsAction)break;
-    if(aliveCount()<=1){finishFold();return;}
-  }
+  // AI 레이즈에 대한 다른 AI들의 리액션
+  settleAIBets(2);
+  if(aliveCount()<=1){finishFold();return;}
 }
 
 // ===== FINISH =====
@@ -2442,7 +2542,7 @@ function showdown(){
   
   if(isHeroWin)spawnChips(true);
   if(isSplitPot){
-    showToast('⚖️ 스플릿 팟! '+winners.length+'명이 팟을 나눔니다 (각 '+fmt(share)+')','rgba(251,191,36,.95)');
+    showToast('⚖️ 스플릿 팟! '+winners.length+'명이 팟을 나눕니다 (각 '+fmt(share)+')','rgba(251,191,36,.95)');
   }
   showResult(isHeroWin,winners[0].player,xp,false,results,isSplitPot,winners);
   renderGame('');
@@ -2495,7 +2595,8 @@ function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinne
   
   // 팟 획득 정보 표시
   if(isSplitPot&&isWin){
-    var myShare=Math.floor(pot/splitWinners.length);
+    var heroWinnerIdx=splitWinners.findIndex(function(w){return w.player===players[0]});
+    var myShare=Math.floor(pot/splitWinners.length)+(heroWinnerIdx===0?pot%splitWinners.length:0);
     $('resultSub').textContent='⚖️ 팟 '+fmt(pot)+' 중 '+fmt(myShare)+' 획득 (스플릿)';
     $('resultSub').style.color='var(--yellow2)';
   } else if(isSplitPot&&!isWin){
@@ -2681,18 +2782,17 @@ function copyLink(){
 }
 
 function getBeltName(xp){
-  if(xp>=5000)return'검은띄';
-  if(xp>=3000)return'빨간띄';
-  if(xp>=1500)return'파란띄';
-  if(xp>=700)return'초록띄';
-  if(xp>=200)return'노란띄';
-  return'흰띄';
+  xp=typeof xp==='number'?xp:progress.xp;
+  for(var i=BELT_XP.length-1;i>=0;i--){
+    if(xp>=BELT_XP[i])return BELT_NAMES[i];
+  }
+  return BELT_NAMES[0];
 }
 
 // ===== TUTORIAL =====
 var TUTORIALS=[
   {title:'홀덤 도장에 오신 것을 환영합니다! 🃏',body:'텍사스 홀덤을 처음 배우는 분을 위한 연습 앱입니다. <strong>실제 돈은 없고, 실력만 쌓습니다.</strong>'},
-  {title:'게임 화면 구성 📱',body:'<strong>상단</strong>: AI 상대방 3명 (D=딜러, SB=스몰블라인드, BB=빅블라인드)<br><strong>중앙</strong>: 공용 카드(보드)와 팟 크기<br><strong>하단</strong>: 내 카드와 현재 족보'},
+  {title:'게임 화면 구성 📱',body:'<strong>상단</strong>: AI 상대방 5명 (D=딜러, SB=스몰블라인드, BB=빅블라인드)<br><strong>중앙</strong>: 공용 카드(보드)와 팟 크기<br><strong>하단</strong>: 내 카드와 현재 족보'},
   {title:'4가지 행동 🎯',body:'<strong>폴드</strong>: 패를 포기 (약한 패일 때)<br><strong>체크</strong>: 무료로 다음으로 넘기기<br><strong>콜</strong>: 상대 베팅 따라가기<br><strong>베팅</strong>: 칩을 더 넣기 (빠른 베팅 버튼 활용!)'},
   {title:'💡 코치 팁 & 포지션',body:'초록색 팁 박스가 <strong>현재 핸드 강도</strong>와 <strong>팟 오즈</strong>, <strong>내 포지션</strong>을 알려줍니다.<br>BTN(딜러)이 가장 유리한 포지션입니다!'}
 ];
@@ -2924,7 +3024,7 @@ ${buildHandChart()}
 <br>• <strong>체크</strong>: 오히려 위험! 트랩일 수 있음
 <br>• <strong>폴드</strong>: 진짜 약한 패 (블러프도 포기한 것)
 <br><br>
-💡 <strong>대응법</strong>: LAG의 레이즈에 쉽게 폴드하지 말것. 괜찮은 패이면 콜로 트랩하는 전략이 효과적.</p>
+💡 <strong>대응법</strong>: LAG의 레이즈에 쉽게 폴드하지 마세요. 괜찮은 패이면 콜로 트랩하는 전략이 효과적입니다.</p>
 </div>
 
 <div class="learn-card">
@@ -2940,11 +3040,11 @@ ${buildHandChart()}
 
 <div class="learn-card">
 <h3>🧠 보드 텍스처 읽기</h3>
-<p>보드에 따라 상대의 가능한 패을 추측할 수 있습니다:<br><br>
+<p>보드에 따라 상대의 가능한 패를 추측할 수 있습니다:<br><br>
 • <strong>페어 보드</strong> (K-K-7): 상대가 트립이나 풀하우스 가능
 <br>• <strong>플러시 보드</strong> (같은 무늬 3장+): 상대 플러시 주의
 <br>• <strong>스트레이트 보드</strong> (5-6-7): 상대 스트레이트 주의
-<br>• <strong>드라이 보드</strong> (흘어진 숫자): 블러프 기회
+<br>• <strong>드라이 보드</strong> (흩어진 숫자): 블러프 기회
 <br><br>
 보드를 보고 상대의 범위를 좁혀가는 연습을 해보세요!</p>
 </div>
@@ -3151,8 +3251,9 @@ function buildReviewContent(){
     html+='<div class="rv-result">'+ico+'</div>';
     html+='<div class="rv-info">';
     html+='<div class="rv-hand" style="color:'+col+'">'+r.hand+'</div>';
-    var finalHandStr=r.finalHand?' · 패: '+r.finalHand:'';
-    html+='<div class="rv-board">'+(r.board||'보드 없음')+finalHandStr+(r.winner&&r.result!=='win'?' · 승자: '+r.winner:'')+'</div>';
+    var finalHandStr=r.finalHand?' · 족보: '+r.finalHand:'';
+    var potStr=r.pot?' · 팟 '+fmt(r.pot):'';
+    html+='<div class="rv-board">'+(r.board||'보드 없음')+finalHandStr+potStr+(r.winner&&r.result!=='win'?' · 승자: '+r.winner:'')+'</div>';
     html+='</div>';
     html+='<div class="rv-tier">'+r.info+'</div>';
     html+='</div>';
