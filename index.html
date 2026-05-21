@@ -688,6 +688,7 @@ input[type=range]{-webkit-appearance:none;appearance:none}
   <div id="tableWrap">
     <div id="opponents"></div>
     <div id="boardArea">
+      <div id="aiQuote" style="font-size:11px;font-weight:700;color:#fbbf24;text-align:center;padding:3px 8px;border-radius:8px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);opacity:0;transition:opacity .5s;min-height:20px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
       <div id="potDisplay">
         <span class="pot-label">POT</span>
         <span id="potVal">0</span>
@@ -794,7 +795,7 @@ input[type=range]{-webkit-appearance:none;appearance:none}
     <div class="sponsor-card" id="resultSponsor" style="opacity:.85">
       <div class="sponsor-label" style="font-size:9px;opacity:.7">💚 홀덤 도장 후원사 · 어센틱금융그룹</div>
       <div class="sponsor-title" style="font-size:13px">내가 내는 돈이 자산이 되는 가족 케어 플랜</div>
-      <div class="sponsor-desc" style="font-size:10px">상조 + 가전 렌탈 + 헬스케어를 하나로. 월 35,000원, 20년 만기 시 100% 환급.</div>
+      <a href="https://sereno.kr" target="_blank" class="sponsor-desc" style="font-size:10px;display:block;text-decoration:none;cursor:pointer;border:1px solid var(--border2);border-radius:8px;padding:6px;background:var(--bg3)">💎 상조 + 가전 렌탈 + 헬스케어를 하나로. 월 35,000원, 20년 만기 시 100% 환급. <span style="color:var(--blue2)">→ 자세히</span></a>
       <a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta" style="padding:8px 12px;font-size:11px">무료 상담 →</a>
     </div>
     <div class="share-row" style="display:flex;gap:8px;justify-content:center;margin:12px 0 4px">
@@ -1724,7 +1725,30 @@ function aiDecide(p,need,pot,streetName){
       }
     }
   }
+  showAIQuote(p);
 }
+
+// ===== AI 대사 시스템 =====
+var AI_QUOTES={
+  '베팅':['팟은 내가 가져간다','조금 더 올려볼까','여기서 공격','받아볼 테면 받아봐'],
+  '레이즈':['더 올린다','따라올 수 있어?','레이즈! 긴장필수','이번엔 진심이다'],
+  '콜':['일단 따라가 보자','한 번 더 볼까','콜. 아직 몰라','천천히 가자'],
+  '폴드':['이건 접어야겠다','다음에 봐','에이...','포기가 현명한 선택'],
+  '체크':['일단 지켜보자','체크로 넘어간다','관망 중...','흐음'],
+  '올인':['올인!','이게 마지막이다','전부 건다','화이팅!','전부인이야!']
+};
+function showAIQuote(p){
+  if(!p.action||p.action==='SB'||p.action==='BB')return;
+  var quotes=AI_QUOTES[p.action];
+  if(!quotes||Math.random()>0.35)return;
+  var q=quotes[Math.floor(Math.random()*quotes.length)];
+  var el=document.getElementById('aiQuote');
+  if(!el)return;
+  el.textContent=p.name+': "'+q+'"';
+  el.style.opacity='1';
+  setTimeout(function(){el.style.opacity='0';},2500);
+}
+
 function postBet_ai(p,amt,act){
   amt=Math.min(Math.max(0,amt),p.stack);
   if(amt<=0){p.action='체크';return;}
@@ -2050,9 +2074,9 @@ function startNewTournament(){
 }
 
 function shareChampion(){
-  var txt='🏆 홀덤 도장 토너먼트 우승!\n'+tournamentHand+'핸드 만에 모든 AI를 제압했다!\n최종 스택: '+fmt(players[0].stack)+'\n\n나도 도전 → https://holdem-brown.vercel.app\n\n#홀덤도장 #홀덤 #포커 #우승';
+  var txt='🏆 홀덤 도장 토너먼트 우승!\n'+tournamentHand+'핸드 만에 모든 AI를 제압!\n최종 스택: '+fmt(players[0].stack)+'\n\n👉 나도 도전: https://holdem-brown.vercel.app\n💎 미래를 준비하는 현명한 선택: https://sereno.kr\n\n#홀덤도장 #홀덤 #포커 #우승 #세레노상조';
   if(navigator.share){
-    navigator.share({title:'홀덤 도장 우승!',text:txt,url:'https://holdem-brown.vercel.app'}).catch(function(){});
+    navigator.share({title:'홀덤 도장 토너먼트 우승!',text:txt}).catch(function(){});
   } else {
     navigator.clipboard.writeText(txt).then(function(){showToast('클립보드에 복사되었습니다!')});
   }
@@ -2416,26 +2440,17 @@ function processAIResponses(hero, heroAllIn){
   }
 
   // 다음 단계
-  if(aliveCount()<=1){finishFold();}
-  else if(street==='river'){showdown();}
+  if(aliveCount()<=1){finishFold();return;}
+  else if(street==='river'){showdown();return;}
   else{nextStreet();}
 
-  var hi=$('hdrHandInfo');
-  if(hi){
-    var blind=getBlindLevel();
-    var anteStr=blind.ante?' (앤티 '+fmt(blind.ante)+')':'';
-    hi.textContent='Lv.'+(getBlindLevelIdx()+1)+' · '+fmt(blind.sb)+'/'+fmt(blind.bb)+anteStr+' · 핸드 '+tournamentHand;
-  }
-  if(!handOver){
-    var made2=board.length>=3?bestHand(players[0].cards.concat(board)):null;
-    var streetMsg={
-      'flop':'플랍! 공용 카드 3장이 공개되었습니다.',
-      'turn':'턴! 4번째 공용 카드입니다.',
-      'river':'리버! 마지막 카드입니다. 최종 판단을 하세요.'
-    }[street]||'카드를 확인하고 행동을 선택하세요.';
-    var madeMsg=made2?' 현재 족보: <strong>'+made2.name+'</strong>':'';
-    renderGame(streetMsg+madeMsg);
-  }
+  // 보드 딜링 후 화면 강제 업데이트
+  var madeAfter=board.length>=3?bestHand(players[0].cards.concat(board)):null;
+  var streetMsgs={'flop':'플랍! 공용 카드 3장이 공개되었습니다.','turn':'턴! 4번째 공용 카드입니다.','river':'리버! 마지막 카드입니다.'};
+  var msg=streetMsgs[street]||'카드를 확인하고 행동을 선택하세요.';
+  if(madeAfter)msg+=' 현재 족보: <strong>'+madeAfter.name+'</strong>';
+  renderGame(msg);
+  return;
 }
 
 function autoFinishAfterHeroAllIn(){
@@ -2467,11 +2482,13 @@ function autoFinishAfterFold(){
   var aiAlive=players.filter(function(p,i){return i>0&&!p.folded&&!isEliminated(i)});
   if(aiAlive.length<=1){finishFold();return;}
 
-  // 남은 스트릿 진행 (베팅은 간소화: AI 모두 체크로 진행)
+  // 남은 스트릿 진행 + 화면 업데이트
   while(street!=='river'){
     if(street==='preflop'){street='flop';board.push(deal(),deal(),deal());}
     else if(street==='flop'){street='turn';board.push(deal());}
     else if(street==='turn'){street='river';board.push(deal());}
+    playSound('card');
+    renderGame(street==='flop'?'플랍 공개 — 관전 중':street==='turn'?'턴 공개 — 관전 중':'리버 공개 — 관전 중');
     aiAlive=players.filter(function(p,i){return i>0&&!p.folded&&!isEliminated(i)});
     if(aiAlive.length<=1){finishFold();return;}
   }
@@ -2507,6 +2524,13 @@ function nextStreet(){
   // AI 레이즈에 대한 다른 AI들의 리액션
   settleAIBets(2);
   if(aliveCount()<=1){finishFold();return;}
+  
+  // 화면 업데이트: 새 보드 + AI 액션 반영
+  var streetNames={'flop':'플랍','turn':'턴','river':'리버'};
+  var madeAfter=bestHand(players[0].cards.concat(board));
+  var msg=streetNames[street]+'! 공용 카드가 공개되었습니다.';
+  if(madeAfter) msg+=' 현재 족보: <strong>'+madeAfter.name+'</strong>';
+  renderGame(msg);
 }
 
 // ===== FINISH =====
@@ -2968,9 +2992,9 @@ function hideResult(){
 function shareResult(){
   var lastHand=progress.reviews&&progress.reviews[0]?progress.reviews[0].finalHand:'';
   var handMsg=lastHand?' ('+lastHand+')':'';
-  var txt='🃏 홀덤 도장에서 '+progress.wins+'승 달성!'+handMsg+' \n🏆 현재 '+getBeltName(progress.xp)+' | 연승 '+progress.streak+'\n\n나도 홀덤 실력 테스트 → https://holdem-brown.vercel.app\n\n#홀덤 #텍사스홀덤 #홀덤도장 #포커 #홀덤연습 #홀덤게임';
+  var txt='🃏 홀덤 도장에서 '+progress.wins+'승 달성!'+handMsg+'\n🏆 현재 '+getBeltName(progress.xp)+' | 연승 '+progress.streak+'\n\n👉 홀덤 실력 테스트: https://holdem-brown.vercel.app\n💎 미래를 준비하는 현명한 선택: https://sereno.kr\n\n#홀덤도장 #홀덤 #포커 #세레노상조';
   if(navigator.share){
-    navigator.share({title:'홀덤 도장 전적',text:txt,url:'https://holdem-brown.vercel.app'}).catch(function(){});
+    navigator.share({title:'홀덤 도장 전적',text:txt}).catch(function(){});
   }else{
     navigator.clipboard.writeText(txt).then(function(){showToast('클립보드에 복사되었습니다!');});
   }
