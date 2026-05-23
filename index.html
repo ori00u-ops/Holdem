@@ -652,12 +652,23 @@ input[type=range]{-webkit-appearance:none;appearance:none}
 }
 .scenario-cards{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
 .scenario-label{font-size:10px;color:var(--txt3);font-weight:700;margin-right:4px}
+
+/* Floating sponsor banner */
+#floatingSponsor.collapsed #floatingSponsorInner{display:none}
 </style>
 </head>
 <body>
 
 <div id="loadingScreen">
   <div class="loading-logo">🃏</div>
+  <div class="loading-text">홀덤 도장</div>
+  <div class="loading-sub">텍사스 홀덤을 묣로 배우고 연습하세요</div>
+  <div class="loading-sponsor" style="cursor:pointer" onclick="window.open('https://tkdwh.vercel.app','_blank')">
+    <img src="sponsor-banner.jpg" style="width:100%;max-width:280px;border-radius:8px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto" alt="후원사 배너">
+    <div class="loading-sponsor-txt">숨은 보험금 찾아보기 | 못 받은 환급금 알아보기</div>
+    <div class="loading-sponsor-sub">내가 내는 돈이 자산이 되는 가족 케어 플랜 →</div>
+  </div>
+</div>
   <div class="loading-text">홀덤 도장</div>
   <div class="loading-sub">텍사스 홀덤을 무료로 배우고 연습하세요</div>
   <!-- 후원사 안내는 성장 탭에서 확인하세요 -->
@@ -678,7 +689,7 @@ input[type=range]{-webkit-appearance:none;appearance:none}
         <option value="hard">어려움</option>
         <option value="expert">전문가</option>
       </select>
-      <button onclick="initMultiplayer()" style="background:var(--bg3);border:1px solid var(--blue);color:var(--blue2);border-radius:10px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:4px">👥 1v1</button>
+      <button id="modeToggleBtn" onclick="toggle1v1Mode()" style="background:var(--bg3);border:1px solid var(--blue);color:var(--blue2);border-radius:10px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:4px">👥 1v1</button>
       <div id="soundToggle" style="cursor:pointer;font-size:18px;margin-left:4px" onclick="toggleSound()">🔊</div>
     </div>
   </div>
@@ -794,9 +805,13 @@ input[type=range]{-webkit-appearance:none;appearance:none}
     <div class="result-coach" id="resultBody"></div>
     <div class="sponsor-card" id="resultSponsor" style="opacity:.85">
       <div class="sponsor-label" style="font-size:9px;opacity:.7">💚 홀덤 도장 후원사 · 어센틱금융그룹</div>
+      <a href="https://tkdwh.vercel.app" target="_blank"><img src="sponsor-banner.jpg" style="width:100%;border-radius:8px;margin-bottom:8px;display:block" alt="후원사 배너"></a>
       <div class="sponsor-title" style="font-size:13px">내가 내는 돈이 자산이 되는 가족 케어 플랜</div>
-      <a href="https://sereno.kr" target="_blank" class="sponsor-desc" style="font-size:10px;display:block;text-decoration:none;cursor:pointer;border:1px solid var(--border2);border-radius:8px;padding:6px;background:var(--bg3)">💎 상조 + 가전 렌탈 + 헬스케어를 하나로. 월 35,000원, 20년 만기 시 100% 환급. <span style="color:var(--blue2)">→ 자세히</span></a>
-      <a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta" style="padding:8px 12px;font-size:11px">무료 상담 →</a>
+      <div style="font-size:11px;color:var(--txt2);margin-bottom:10px;line-height:1.5">월 35,000원, 20년 만기 시 100% 환급</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta" style="padding:8px 12px;font-size:11px">💎 숨은 보험금 찾아보기</a>
+        <a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta" style="padding:8px 12px;font-size:11px;background:linear-gradient(135deg,var(--blue),#2563eb)">🔍 못 받은 환급금 알아보기</a>
+      </div>
     </div>
     <div class="share-row" style="display:flex;gap:8px;justify-content:center;margin:12px 0 4px">
       <button onclick="shareResult()" style="background:#25D366;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">SNS 공유</button>
@@ -1455,12 +1470,13 @@ function aiDecide(p,need,pot,streetName){
   if(p.folded)return;
   if(p.stack<=0){p.action=p.action||'올인';return;}
   // === 난이도별 AI 행동 패턴 (P1) ===
-  var diffConfig={
+  var diffConfigData={
     easy:{mult:0.60,bluff:0.04,aggression:0.25,bluffCatch:0.15,semiBluff:0.10,slowPlay:0.05,cbet:0.30,heroRead:0.0},
     normal:{mult:1.00,bluff:0.15,aggression:0.45,bluffCatch:0.30,semiBluff:0.25,slowPlay:0.15,cbet:0.55,heroRead:0.20},
     hard:{mult:1.25,bluff:0.28,aggression:0.60,bluffCatch:0.45,semiBluff:0.40,slowPlay:0.25,cbet:0.70,heroRead:0.45},
     expert:{mult:1.45,bluff:0.40,aggression:0.75,bluffCatch:0.60,semiBluff:0.55,slowPlay:0.35,cbet:0.80,heroRead:0.70}
-  }[aiDifficulty]||diffConfig.normal;
+  };
+  var diffConfig=diffConfigData[aiDifficulty]||diffConfigData.normal;
   var diffMult=diffConfig.mult;
   var diffBluff=diffConfig.bluff;
   
@@ -1664,6 +1680,8 @@ function aiDecide(p,need,pot,streetName){
       if(isSlowPlay&&madeRank>=5){
         // 슬로우플레이: 콜로 트랩
         postBet_ai(p,need,'콜');
+        showAIQuote(p);
+        return;
       } else if(adjStr>=raiseTh){
         // 3-bet / 레이즈
         if(p.stack>need*2&&r<threeBetProb+0.15){
@@ -1700,6 +1718,8 @@ function aiDecide(p,need,pot,streetName){
       if(isSlowPlay&&madeRank>=5){
         // 슬로우플레이: 콜로 트랩
         postBet_ai(p,need,'콜');
+        showAIQuote(p);
+        return;
       } else if(adjStr>=raiseTh){
         // 3-bet
         if(p.stack>need*2.5&&r<threeBetProb+0.20){
@@ -1750,8 +1770,8 @@ function showAIQuote(p){
 }
 
 function postBet_ai(p,amt,act){
-  amt=Math.min(Math.max(0,amt),p.stack);
-  if(amt<=0){p.action='체크';return;}
+  amt=Math.min(Math.max(0,Math.round(amt)),p.stack);
+  if(amt<=0||p.stack<=0){p.action='체크';return;}
   p.stack-=amt;p.round=(p.round||0)+amt;pot+=amt;
   p.action=p.stack<=0?'올인':act;
   if(p.round>currentBet)currentBet=p.round;
@@ -1798,6 +1818,10 @@ function settleAIBets(maxRounds){
     }
     if(!needsAction||aliveCount()<=1)break;
   }
+  // After settling, if only 1 player remains, end the hand
+  if(aliveCount()<=1){
+    handOver=true;
+  }
 }
 
 // ===== GAME INIT =====
@@ -1818,6 +1842,15 @@ function initPlayers(){
 }
 
 function newHand(resetAll){
+  // Cleanup overlays
+  hideResult();
+  var goOverlay=$('gameOverOverlay');
+  if(goOverlay)goOverlay.style.display='none';
+  var champOverlay=$('championOverlay');
+  if(champOverlay)champOverlay.style.display='none';
+  var scenOverlay=document.getElementById('scenarioOverlay');
+  if(scenOverlay)scenOverlay.remove();
+  handOver=false;
   if(resetAll){
     initPlayers();
     dealer=players.length-1;
@@ -1972,6 +2005,13 @@ function showGameOver(){
     }
     html+='<div class="go-timer" style="font-size:13px;color:var(--txt3)">⏳ 내일 자정에 3회 충전됩니다</div>';
   }
+  html+='<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">';
+  html+='<div style="font-size:9px;color:var(--green2);font-weight:700;margin-bottom:6px;opacity:.7">💚 홀덤 도장 후원사</div>';
+  html+='<div style="font-size:12px;font-weight:900;color:#fff;margin-bottom:4px">내가 내는 돈이 자산이 되는 가족 케어 플랜</div>';
+  html+='<div style="font-size:11px;color:var(--txt2);margin-bottom:8px">월 35,000원, 20년 만기 시 100% 환급</div>';
+  html+='<a href="https://tkdwh.vercel.app" target="_blank" style="display:block;background:linear-gradient(135deg,var(--green),#059669);color:#fff;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:900;text-decoration:none;text-align:center;margin-bottom:6px">💎 숨은 보험금 찾아보기</a>';
+  html+='<div style="font-size:10px;color:var(--txt3);text-align:center">📞 상담 → 010-7529-5945</div>';
+  html+='</div>';
   html+='</div></div>';
   overlay.innerHTML=html;
   
@@ -2083,7 +2123,9 @@ function shareChampion(){
 }
 
 function aliveCount(){
-  return players.filter(function(p){return!p.folded}).length;
+  return players.filter(function(p,idx){
+    return !p.folded && !isEliminated(idx);
+  }).length;
 }
 
 // ===== OUTS CALCULATION =====
@@ -2311,10 +2353,13 @@ function renderGame(coachMsg){
   $('nextBtn').className=handOver?'show':'';
   
   // Quick bet buttons
-  var maxBet=Math.max(0,Math.min(hero.stack,500));
-  var minBet=maxBet>0?Math.min(20,maxBet):0;
+  var maxBet=Math.max(0,hero.stack);
+  var blind=getBlindLevel();
+  var minBet=blind?Math.min(blind.bb,maxBet):Math.min(20,maxBet);
+  if(minBet<=0)minBet=Math.min(20,maxBet);
   $('betSlider').min=minBet;
   $('betSlider').max=Math.max(minBet,maxBet);
+  $('betSlider').step=minBet;
   if(betAmount>maxBet)betAmount=maxBet;
   if(betAmount<minBet)betAmount=minBet;
   $('betSlider').value=betAmount;
@@ -2354,9 +2399,11 @@ function setBetAmount(amt){
 
 // ===== HERO ACTION =====
 function heroAct(action){
-  if(handOver)return;
+  if(handOver){showToast('핸드가 종료되었습니다. 다음 핸드를 시작하세요.','rgba(239,68,68,.9)');return;}
+  if(!action)return;
   var hero=players[0];
   if(hero.folded)return;
+  if(hero.stack<=0&&action!=='fold'&&action!=='call'){showToast('스택이 부족합니다','rgba(239,68,68,.9)');return;}
   var need=Math.max(0,currentBet-hero.round);
 
   $('betSliderWrap').classList.remove('show');
@@ -2577,13 +2624,32 @@ function finishFold(){
 function showdown(){
   handOver=true;
   var alive=players.filter(function(p){return!p.folded});
-  
+
+  // Edge case: no one should be alive - find last non-hero non-folded
+  if(alive.length===0){
+    var lastNonFolded=players.slice(1).reverse().find(function(p){return !p.folded;});
+    if(lastNonFolded){lastNonFolded.stack+=pot;}
+    else{players[0].stack+=pot;}
+    showResult(false,players[0],0,false);
+    renderGame('');return;
+  }
+  // Edge case: only 1 alive - they win
+  if(alive.length===1){
+    alive[0].stack+=pot;
+    var singleWin=alive[0].isHero;
+    if(singleWin){progress.wins++;progress.tableWins++;progress.streak=(progress.streak||0)+1;saveProgress();}
+    else{progress.streak=0;saveProgress();}
+    showResult(singleWin,alive[0],singleWin?80:20,false,[{player:alive[0],hand:null}]);
+    if(singleWin)spawnChips(true);
+    renderGame('');return;
+  }
+
   var results=alive.map(function(p){
     var hand=bestHand(p.cards.concat(board));
     return{player:p,hand:hand};
   });
   results.sort(function(a,b){return cmpHand(b.hand,a.hand)});
-  
+
   // === WSOP 룰: 스플릿 팟 (무승부) 처리 ===
   // 동일한 핸드 강도를 가진 플레이어들을 찾음
   var winners=[results[0]];
@@ -2594,21 +2660,21 @@ function showdown(){
       break;
     }
   }
-  
+
   var isSplitPot=winners.length>1;
   var share=Math.floor(pot/winners.length);
-  var remainder=pot-(share*winners.length); // 나머지 칩은 포지션 순서로 첫번째 승자에게 (WSOP 룰)
-  
+  var remainder=pot-(share*winners.length);
+
   winners.forEach(function(w,idx){
     var amt=share+(idx===0?remainder:0);
     w.player.stack+=amt;
   });
-  
+
   // 히어로가 승자 중 하나인지 확인 (폴드한 히어로는 절대 승자 아님)
   var isHeroWin=(!players[0].folded)&&winners.some(function(w){return w.player===players[0]});
   // P1: 핸드 통계 기록
   recordHandStats(isHeroWin?players[0]:winners[0].player,players[0]);
-  
+
   // 스트릭 시스템
   if(isHeroWin){
     progress.streak=(progress.streak||0)+1;
@@ -2617,18 +2683,18 @@ function showdown(){
   } else {
     progress.streak=0;
   }
-  
+
   var bonusXP=0;
   if(isHeroWin&&progress.streak>=3){
     bonusXP=progress.streak>=5?50:progress.streak>=3?25:0;
     if(bonusXP>0){
-      showToast('🔥 '+progress.streak+'연승 스트릭! +'+bonusXP+' 보너스 XP','linear-gradient(135deg,#f97316,#ef4444)');
+      showToast('🔥 '+progress.streak+'연승 스트릭! +'+bonusXP+' 본러스 XP','linear-gradient(135deg,#f97316,#ef4444)');
     }
   }
   var xp=(isHeroWin?80:20)+bonusXP;
   addXP(xp);
   saveProgress();
-  
+
   if(isHeroWin)spawnChips(true);
   if(isSplitPot){
     showToast('⚖️ 스플릿 팟! '+winners.length+'명이 팟을 나눕니다 (각 '+fmt(share)+')','rgba(251,191,36,.95)');
@@ -2960,7 +3026,7 @@ function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinne
   }
   $('resultBody').innerHTML=coachMsg+(decisionComment?'<br><br>'+decisionComment:'');
   
-  // 복기 저장 (최종 핸드 이름 포함)
+  // 복기 저장 (강화된 핸드 히스토리)
   var review={
     hand:handLabel(players[0].cards),
     board:board.map(function(c){return (c.r==='T'?'10':c.r)+c.s}).join(' '),
@@ -2969,7 +3035,11 @@ function showResult(isWin,winner,xp,isFold,showdownResults,isSplitPot,splitWinne
     winner:winner.name||'나',
     pot:pot,
     finalHand:heroFinalHand?heroFinalHand.name:'',
-    winnerHand:winnerFinalHand?winnerFinalHand.name:''
+    winnerHand:winnerFinalHand?winnerFinalHand.name:'',
+    position:getPositionLabel(0),
+    street:street,
+    date:new Date().toLocaleDateString('ko-KR'),
+    time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})
   };
   progress.reviews.unshift(review);
   if(progress.reviews.length>30)progress.reviews.pop();
@@ -3358,10 +3428,14 @@ ${buildAdvancedLearnContent()}
 <div class="section-title">💚 후원사 안내</div>
 <div class="sponsor-card">
   <div class="sponsor-label">어센틱금융그룹 · 나상균 상담사</div>
+  <a href="https://tkdwh.vercel.app" target="_blank"><img src="sponsor-banner.jpg" style="width:100%;border-radius:8px;margin-bottom:8px;display:block" alt="후원사 배너"></a>
   <div class="sponsor-title">내가 내는 돈이 자산이 되는 가족 케어 플랜</div>
-  <div class="sponsor-desc">상조 + 최신 가전 렌탈 + KB헬스케어를 하나로. 월 35,000원, 20년 만기 시 납입금 100% 환급. 전국 무료 상담 가능.</div>
-  <a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta">자세히 보기 →</a>
-  <a href="tel:01075295945" class="sponsor-cta-ghost">📞 010-7529-5945</a>
+  <div class="sponsor-desc">상조 + 최신 가전 렌탈 + KB헬스케어를 하나로. 월 35,000원, 20년 만기 시 납입금 100% 환급. 전국 묣 상담 가능.</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta">💎 숨은 보험금 찾아보기</a>
+    <a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta" style="background:linear-gradient(135deg,var(--blue),#2563eb)">🔍 환급금 알아보기</a>
+  </div>
+  <a href="tel:01075295945" class="sponsor-cta-ghost" style="margin-left:0;margin-top:6px">📞 010-7529-5945</a>
 </div>
 `;
 }
@@ -3722,12 +3796,16 @@ function buildGrowthContent(){
   html+='<div class="section-title">💚 후원사</div>';
   html+='<div class="sponsor-card">';
   html+='<div class="sponsor-label">어센틱금융그룹 · 나상균 상담사</div>';
+  html+='<a href="https://tkdwh.vercel.app" target="_blank"><img src="sponsor-banner.jpg" style="width:100%;border-radius:8px;margin-bottom:8px;display:block" alt="후원사 배너"></a>';
   html+='<div class="sponsor-title">내가 내는 돈이 자산이 되는 가족 케어 플랜</div>';
-  html+='<div class="sponsor-desc">상조 + 최신 가전 렌탈 + KB헬스케어를 하나로. 월 35,000원, 20년 만기 시 납입금 100% 환급. 전국 무료 상담 가능.</div>';
-  html+='<a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta">무료 상담 신청 →</a>';
-  html+='<a href="tel:01075295945" class="sponsor-cta-ghost">📞 010-7529-5945</a>';
+  html+='<div style="font-size:11px;color:var(--txt2);margin-bottom:8px;line-height:1.5">월 35,000원, 20년 만기 시 100% 환급</div>';
+  html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">';
+  html+='<a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta">💎 숨은 보험금 찾아보기</a>';
+  html+='<a href="https://tkdwh.vercel.app" target="_blank" class="sponsor-cta" style="background:linear-gradient(135deg,var(--blue),#2563eb)">🔍 환급금 알아보기</a>';
   html+='</div>';
-  
+  html+='<a href="tel:01075295945" class="sponsor-cta-ghost" style="margin-left:0">📞 010-7529-5945</a>';
+  html+='</div>';
+
   return html;
 }
 
@@ -3803,61 +3881,71 @@ panelEl.addEventListener('touchend',function(e){
 $('beltBadge').addEventListener('click',function(){openPanel('growth')});
 
 
-// ===== MULTIPLAYER 1v1 TURN-BASED (P2) =====
-var mpState={mode:'solo',roomId:null,opponent:null,myTurn:false,lastAction:null};
-var MP_STORE='holdem_mp_state';
+// ===== 1v1 HEADS-UP MODE TOGGLE =====
+var gameMode='6max'; // '6max' or '1v1'
+var origAI_NAMES=AI_NAMES.slice();
+var origAI_STYLES=AI_STYLES.slice();
 
-function initMultiplayer(){
-  mpState.mode='1v1';
-  mpState.roomId='room_'+Math.random().toString(36).substr(2,8);
-  mpState.myTurn=true;
-  showToast('👥 1v1 모드: 상대방에게 링크를 공유하세요','rgba(59,130,246,.95)');
-  // Generate shareable link
-  var link='https://holdem-brown.vercel.app/?room='+mpState.roomId+'&side=2';
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(link).then(function(){showToast('초대 링크 복사됨!');});
-  }
-  // Store in localStorage for sync (simplified - real impl needs server)
-  localStorage.setItem(MP_STORE,JSON.stringify(mpState));
-  renderGame('1v1 모드: 상대방이 입장할 때까지 대기 중...');
-}
-
-function checkMultiplayerRoom(){
-  var url=new URL(window.location.href);
-  var room=url.searchParams.get('room');
-  var side=url.searchParams.get('side');
-  if(room&&side==='2'){
-    mpState.roomId=room;
-    mpState.mode='1v1';
-    mpState.myTurn=false;
-    localStorage.setItem(MP_STORE,JSON.stringify(mpState));
-    showToast('👥 1v1 모드: 상대방이 기다리고 있습니다','rgba(59,130,246,.95)');
-    // Simplified: both players use same localStorage key for demo
-    initPlayers();
-    players=players.slice(0,2); // 1v1
+function toggle1v1Mode(){
+  if(gameMode==='6max'){
+    gameMode='1v1';
+    showToast('👥 헤즈업(1v1) 모드로 전환합니다','rgba(59,130,246,.95)');
+    setup1v1();
     newHand(true);
-    return true;
+  } else {
+    gameMode='6max';
+    showToast('👥 6인 테이블 모드로 전환합니다','rgba(59,130,246,.95)');
+    restore6max();
+    newHand(true);
   }
-  return false;
+  updateModeToggleUI();
 }
-
-// Override for 1v1: only 2 players
+function updateModeToggleUI(){
+  var btn=$('modeToggleBtn');
+  if(!btn)return;
+  if(gameMode==='1v1'){
+    btn.textContent='👥 6max';
+    btn.style.borderColor='var(--green)';
+    btn.style.color='var(--green2)';
+  } else {
+    btn.textContent='👥 1v1';
+    btn.style.borderColor='var(--blue)';
+    btn.style.color='var(--blue2)';
+  }
+}
 function setup1v1(){
-  AI_NAMES=['상대방'];
+  AI_NAMES=['AI 챔피언'];
   AI_STYLES=['EXPERT'];
+  var origInitPlayers=initPlayers;
+  initPlayers=function(){
+    players=[
+      {name:'나',stack:2000,cards:[],round:0,action:'',folded:false,isHero:true,style:'HERO'},
+      {name:AI_NAMES[0],stack:2000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[0]}
+    ];
+  };
+  initPlayers._original=origInitPlayers;
+}
+function restore6max(){
+  AI_NAMES=['AI 민준','AI 서아','AI 도윤','AI 하은','AI 시우'];
+  AI_STYLES=['TAG','LAG','TIGHT','LAG','TAG'];
   initPlayers=function(){
     players=[
       {name:'나',stack:1000,cards:[],round:0,action:'',folded:false,isHero:true,style:'HERO'},
-      {name:'상대방',stack:1000,cards:[],round:0,action:'',folded:false,style:'EXPERT'}
+      {name:AI_NAMES[0],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[0]},
+      {name:AI_NAMES[1],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[1]},
+      {name:AI_NAMES[2],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[2]},
+      {name:AI_NAMES[3],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[3]},
+      {name:AI_NAMES[4],stack:1000,cards:[],round:0,action:'',folded:false,style:AI_STYLES[4]}
     ];
   };
 }
 
-window.initMultiplayer=initMultiplayer;
-window.checkMultiplayerRoom=checkMultiplayerRoom;
+window.toggle1v1Mode=toggle1v1Mode;
+window.updateModeToggleUI=updateModeToggleUI;
 
 // ===== INIT =====
 updateBeltUI();
+updateModeToggleUI();
 setTimeout(function(){
   var ls=$('loadingScreen');
   ls.classList.add('fade');
@@ -3921,5 +4009,21 @@ if('serviceWorker' in navigator){
   } catch(e) {}
 }
 </script>
+
+<!-- In-Game Floating Sponsor Banner -->
+<div id="floatingSponsor" style="position:fixed;bottom:calc(var(--safe-b) + 72px);right:8px;z-index:30;max-width:200px;transition:transform .3s,opacity .3s">
+  <div style="background:linear-gradient(135deg,#1a2e1a,#0f2010);border:1px solid rgba(16,185,129,.4);border-radius:12px;padding:8px 12px;box-shadow:0 4px 12px rgba(0,0,0,.5)">
+    <button onclick="document.getElementById('floatingSponsorInner').style.display=document.getElementById('floatingSponsorInner').style.display==='none'?'block':'none'" style="background:none;color:var(--green2);font-size:10px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;width:100%">
+      <span>🏠 장례만이 아닌, 가족 케어 플랜 →</span>
+      <span style="margin-left:auto;font-size:8px">▼</span>
+    </button>
+    <div id="floatingSponsorInner" style="display:none;margin-top:8px">
+      <a href="https://tkdwh.vercel.app" target="_blank"><img src="sponsor-banner.jpg" style="width:100%;border-radius:6px;margin-bottom:6px;display:block" alt="후원사"></a>
+      <a href="https://tkdwh.vercel.app" target="_blank" style="display:block;background:linear-gradient(135deg,var(--green),#059669);color:#fff;border-radius:6px;padding:6px 8px;font-size:10px;font-weight:700;text-decoration:none;text-align:center;margin-bottom:4px">💎 숨은 보험금 찾아보기</a>
+      <a href="https://tkdwh.vercel.app" target="_blank" style="display:block;background:linear-gradient(135deg,var(--blue),#2563eb);color:#fff;border-radius:6px;padding:6px 8px;font-size:10px;font-weight:700;text-decoration:none;text-align:center">🔍 환급금 알아보기</a>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
