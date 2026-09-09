@@ -1,0 +1,6 @@
+{
+ "appId":"com.nasanggyun.holdemdojo",
+ "appName":"홀덤 도장",
+ "webDir":"dist",
+ "server":{"androidScheme":"https"}
+}
