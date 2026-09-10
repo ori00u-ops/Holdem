@@ -1,23 +1,32 @@
-name: Holdem smoke tests
-
+name: Holdem rules and browser checks
 on:
   push:
     branches: [main]
   pull_request:
-
 permissions:
   contents: read
-
 jobs:
-  smoke:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install smoke-test runtime
-        run: npm install --no-save --package-lock=false jsdom@26.1.0
-      - name: Run game smoke tests
-        run: node tests/smoke.mjs
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:artifact
+      - run: npx playwright install --with-deps chromium
+      - name: Browser flows
+        run: |
+          npm run dev > /tmp/holdem-server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ > /dev/null && break || sleep 1; done
+          npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-checks
+          path: artifacts/
