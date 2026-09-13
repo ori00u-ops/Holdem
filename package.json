@@ -1,13 +1,13 @@
 {
   "name": "holdem-dojo",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test tests/engine.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/learning.test.mjs",
     "dev": "node scripts/serve.mjs",
-    "test:ui": "node tests/ui.mjs",
+    "test:ui": "node tests/ui.mjs && node tests/features.mjs",
     "test:artifact": "node tests/smoke.mjs"
   },
   "devDependencies": {

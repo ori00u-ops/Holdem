@@ -1,8 +1,9 @@
 import {readFile,writeFile,mkdir,copyFile,readdir} from 'node:fs/promises';
 import path from 'node:path';
+import './pages.mjs';
 const root=path.resolve(import.meta.dirname,'..');
 const read=p=>readFile(path.join(root,p),'utf8');
-const parts=await Promise.all(['src/engine.js','src/content.js','src/app.js'].map(read));
+const parts=await Promise.all(['src/engine.js','src/content.js','src/audio.js','src/learning.js','src/backup.js','src/app.js'].map(read));
 const script=parts.map(s=>s.replace(/^import .+;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
 // Parse before emitting the standalone artifact. It remains runnable directly from file://.
 new Function(script);

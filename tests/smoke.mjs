@@ -1,10 +1,10 @@
 import {readFile,stat} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const html=await readFile('index.html','utf8');
-assert.match(html,/<meta name="app-version" content="3\.0\.0">/);
+assert.match(html,/<meta name="app-version" content="3\.1\.0">/);
 assert.match(html,/나상균/);assert.match(html,/tel:01075295945/);assert.doesNotMatch(html,/�/);
 const scripts=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,1);for(const s of scripts)new Function(s[1]);
-for(const name of ['index.html','manifest.webmanifest','sw.js','icon.svg','icon-192.png','icon-512.png','og-v3.png'])assert.ok((await stat('dist/'+name)).size>0);
+for(const name of ['index.html','manifest.webmanifest','sw.js','icon.svg','icon-192.png','icon-512.png','og-v3.png','guide.html','privacy.html','robots.txt','sitemap.xml'])assert.ok((await stat('dist/'+name)).size>0);
 const manifest=JSON.parse(await readFile('dist/manifest.webmanifest','utf8'));assert.equal(manifest.display,'standalone');assert.equal(manifest.icons.length,2);
 assert.equal(await readFile('dist/index.html','utf8'),html);
 console.log('PASS standalone syntax, creator contact, UTF-8, PWA assets and distribution parity');
